@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Justice Tax Solutions | Tax help when you need more than software</title>
+  <meta name="description" content="Friendly tax help for IRS, New York State, and NYC notices, tax debt, back taxes, self-employed taxes, and tax return review.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest"><meta name="theme-color" content="#0C3B66"><link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="header">
+  <nav class="nav">
+    <a class="logo" href="/"><img src="/brand-mark.svg" alt="" aria-hidden="true"><span>Justice Tax<small>Solutions</small></span></a>
+    <div class="navlinks">
+      <a href="/how-it-works.html">How it works</a><a href="/marketing.html">Tax Help Pages</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/referral-program.html" class="hide-mobile">Referral Program</a>
+      <a href="/signin.html">Sign in</a>
+      <a class="cta" href="#start">Start free</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <p class="kicker">Tax problems first. Returns included.</p>
+      <h1>Tax help that starts with the problem, not the paperwork.</h1>
+      <p class="lead">Upload a tax letter, describe a tax debt, or organize a return. We help you understand what may be happening, what documents may be missing, and when human tax review makes sense.</p>
+      <div class="actions">
+        <a class="button" href="#start">Find my next step</a>
+        <a class="button secondary" href="/how-it-works.html">See how it works</a>
+      </div>
+      <p class="small" data-ref-visible></p>
+      <p class="trust-note">Independent tax help. Not the IRS, New York State, NYC, or a law firm. No refund, tax reduction, payment plan, penalty relief, offer-in-compromise, audit result, or government outcome is guaranteed.</p><div class="customer-flow-strip"><div><strong>1. Start free</strong><span>Tell us what happened.</span></div><div><strong>2. Get organized</strong><span>See missing items and next steps.</span></div><div><strong>3. Choose review</strong><span>Add human help when needed.</span></div><div><strong>4. Move carefully</strong><span>No filing or agency response without review.</span></div></div>
+    </div>
+    <div class="hero-card">
+      <h2>Choose the situation that fits best.</h2>
+      <p class="small">Choose the closest situation. You do not need to know the right form number to begin.</p>
+      <div class="grid">
+        <a class="path-card" data-path="notice-help"><strong>I got a tax notice</strong><span>IRS, NYS, or NYC letters, tax bills, deadline warnings, audits, or confusing mail.</span></a>
+        <a class="path-card" data-path="tax-debt"><strong>I owe or cannot pay</strong><span>Back taxes, payment plans, hardship, penalties, liens, levies, and settlement screening.</span></a>
+        <a class="path-card" data-path="return-help"><strong>I need to file or review a return</strong><span>Current-year, prior-year, amended, W-2, 1099, self-employed, New York resident or nonresident.</span></a>
+        <a class="path-card" data-path="gig-worker"><strong>I am self-employed or a gig worker</strong><span>Uber/Lyft, delivery, freelance work, mileage, expenses, Schedule C, and estimated taxes.</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight" id="start">
+    <div class="grid two">
+      <div class="card form-card">
+        <p class="kicker">Free first step</p>
+        <h2>Tell us what is going on.</h2>
+        <p>We will create a plain-English starting summary, flag urgent items, list missing documents, and suggest the safest next step. You can decide later if you want paid human review.</p>
+        <form id="intake" enctype="multipart/form-data">
+          <input type="hidden" name="referral_code">
+          <div class="row">
+            <div><label>Name</label><input name="name" autocomplete="name" placeholder="Your name"></div>
+            <div><label>Email</label><input name="email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+          </div>
+          <div class="row">
+            <div><label>Phone</label><input name="phone" autocomplete="tel" placeholder="Optional"></div>
+            <div><label>Preferred language</label><select name="language"><option>English</option><option>Español</option><option>Other</option></select></div>
+          </div>
+          <label>What do you need help with?</label>
+          <select name="pathway" required>
+            <option value="notice-help">I got a tax notice</option>
+            <option value="tax-debt">I owe taxes or cannot pay</option>
+            <option value="return-help">I need to file or review a tax return</option>
+            <option value="gig-worker">I am self-employed or a gig worker</option>
+            <option value="amended-prior-year">I need help with a prior-year or amended return</option>
+            <option value="not-sure">I am not sure</option>
+          </select>
+          <label>Best starting service</label>
+          <select name="selectedTier">
+            <option value="free_starting_point">Free starting point</option>
+            <option value="tax_notice_action_plan">Tax notice summary and action plan</option>
+            <option value="return_organizer">Return organizer</option>
+            <option value="simple_return_review">Simple return human review</option>
+            <option value="gig_worker_review">Self-employed / gig worker review</option>
+            <option value="tax_debt_notice_review">Tax debt / notice human review</option>
+            <option value="cpa_ea_tax_attorney_review">CPA / EA / tax attorney review</option>
+          </select>
+          <label>Main concern</label><input name="primaryConcern" placeholder="Example: I got a NYS tax bill and cannot pay">
+          <label>Describe the situation</label><textarea name="description" data-maxlength="2500" placeholder="What happened? What agency contacted you? What tax year? What are you worried about?"></textarea>
+          <label>Notice number or short notice text, optional</label><textarea name="noticeText" data-maxlength="2500" placeholder="Example: CP14, CP2000, CP504, NYS bill number, or a short pasted section. Do not enter full SSNs or bank numbers."></textarea>
+          <div class="row">
+            <div><label>Tax year(s)</label><input name="taxYears" placeholder="Example: 2022, 2023, 2024"></div>
+            <div><label>Income type(s)</label><input name="incomeTypes" placeholder="W-2, 1099, Uber/Lyft, business, unemployment"></div>
+          </div>
+          <label>New York or NYC issue, if any</label><input name="stateCityIssues" placeholder="NY resident, part-year resident, NYC notice, sales tax, UBT, etc.">
+          <label>Upload copies, optional</label><input type="file" name="documents" multiple>
+          <p class="fine-print">Current pilot rule: do not upload real sensitive taxpayer documents unless the live upload gate has been enabled. Use redacted/sample copies for testing. Avoid full SSNs and bank numbers in free-text fields.</p>
+          <label class="check"><input type="checkbox" name="sample_documents_only_acknowledged"> If I upload documents during the current pilot, I confirm they are redacted/sample copies unless Justice Tax Solutions has confirmed live secure upload is enabled.</label>
+          <div class="consent-box">
+            <h3>Before we create your case</h3>
+            <label class="check"><input type="checkbox" name="terms_accepted" required> I agree to the Terms, Privacy Policy, Refund Policy, Disclaimer, and Security notice.</label>
+            <label class="check"><input type="checkbox" name="not_government_acknowledged" required> I understand Justice Tax Solutions is independent and is not the IRS, New York State, NYC, or a government agency.</label>
+            <label class="check"><input type="checkbox" name="no_guarantee_acknowledged" required> I understand no refund, tax reduction, payment plan, penalty relief, OIC, audit result, or agency outcome is guaranteed.</label>
+            <label class="check"><input type="checkbox" name="ai_limitations_acknowledged" required> I understand AI may organize information, but human/professional review is required before filing, signing, or responding to a tax agency.</label>
+            <label class="check"><input type="checkbox" name="document_upload_acknowledged"> If I upload documents, I am uploading copies and understand tax documents contain sensitive information.</label>
+            <label class="check"><input type="checkbox" name="not_emergency_acknowledged" required> I understand this is not emergency same-day representation. Urgent levy, garnishment, court, criminal, or same-day deadline issues need immediate professional help.</label>
+          </div>
+          <div class="actions"><button type="submit">Create my starting summary</button><a class="button secondary" href="/signup.html">Create account first</a></div>
+        </form>
+        <div id="intake-output" class="output"></div>
+      </div>
+
+      <div class="grid">
+        <div class="card"><div class="path-number">1</div><h3>We organize the issue</h3><p>Agency, notice type, deadline, tax year, amount, missing documents, and whether the case looks simple, urgent, or professional-review-needed.</p></div>
+        <div class="card"><div class="path-number">2</div><h3>You see a clear checklist</h3><p>Your dashboard shows what to upload, what to answer, and what still needs review before anyone files, signs, or responds.</p></div>
+        <div class="card"><div class="path-number">3</div><h3>Human review is added when needed</h3><p>PTIN preparers, accountants, CPAs, EAs, or tax attorneys can be routed in for the right level of review.</p></div>
+        <div class="card"><div class="path-number">4</div><h3>Referral tools are built in</h3><p>Community partners get a tracked link, QR code, and printable flyer so people can start free and the referral is credited.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <p class="kicker">Designed for real people</p>
+    <h2>Simple help for stressful tax moments.</h2>
+    <div class="grid three">
+      <div class="card"><h3>Tax notices</h3><p>Upload or describe the letter. We explain the likely issue in plain English and flag deadlines or collection risks.</p></div>
+      <div class="card"><h3>Tax debt and back taxes</h3><p>See whether you may need a payment plan, hardship review, penalty relief review, missing return cleanup, or professional escalation.</p></div>
+      <div class="card"><h3>Returns and gig work</h3><p>Organize W-2s, 1099s, mileage, expenses, prior years, amended returns, and New York state or NYC issues.</p></div>
+    </div>
+  </section>
+
+  <section class="section alt" id="marketing-paths">
+    <p class="kicker">Tax help pages</p>
+    <h2>Start with the problem, not the form number.</h2>
+    <p class="lead">Choose a plain-language path for IRS notices, New York notices, tax debt, back taxes, amended returns, gig-worker taxes, or live professional reassurance.</p>
+    <div class="grid three">
+      <a class="card link-card" href="/irs-notice-help.html"><h3>IRS notice help</h3><p>Understand the letter, deadline, missing facts, and safest review level.</p></a>
+      <a class="card link-card" href="/tax-debt-payment-plan-help.html"><h3>Tax debt and payment plans</h3><p>Screen payment-plan, 9465, 433-F, EA review, and risk flags without overpromises.</p></a>
+      <a class="card link-card" href="/self-employed-gig-worker-tax-help.html"><h3>Gig-worker tax help</h3><p>Organize 1099s, mileage, expenses, Schedule C, and NYS/NYC issues.</p></a>
+    </div>
+    <p><a class="button secondary" href="/marketing.html">See all tax help pages</a></p>
+  </section>
+</main>
+<footer class="footer"><div class="footer-inner"><p>Justice Tax Solutions is independent and not a government agency or law firm.</p><p><a href="/privacy.html">Privacy</a> · <a href="/security.html">Security</a> · <a href="/terms.html">Terms</a> · <a href="/disclaimer.html">Disclaimer</a></p></div></footer>
+<script src="/app.js"></script>
+</body>
+</html>

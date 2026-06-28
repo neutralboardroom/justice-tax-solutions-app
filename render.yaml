@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: justice-tax-solutions
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: DEFAULT_PUBLIC_BASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: DOCUMENT_ENCRYPTION_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: justice-tax-solutions-db
+          property: connectionString
+      - key: LIVE_PAYING_USERS_ENABLED
+        value: "false"
+      - key: ALLOW_SENSITIVE_DOCUMENT_UPLOADS
+        value: "false"
+      - key: ALLOW_REDACTED_SAMPLE_UPLOADS
+        value: "true"
+      - key: DOCUMENT_STORAGE_PROVIDER
+        value: encrypted-local
+      - key: SECURE_OBJECT_STORAGE_CONFIGURED
+        value: "false"
+      - key: MALWARE_SCANNING_PROVIDER
+        value: disabled
+      - key: MALWARE_SCANNING_CONFIGURED
+        value: "false"
+      - key: REQUIRE_STAFF_APPROVAL
+        value: "true"
+      - key: STAFF_SIGNUP_CODE
+        generateValue: true
+      - key: AI_VENDOR_ORDER
+        value: openai,gemini,anthropic,xai
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+
+databases:
+  - name: justice-tax-solutions-db
+    plan: free

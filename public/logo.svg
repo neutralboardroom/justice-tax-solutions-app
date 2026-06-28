@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 84" role="img" aria-label="Justice Tax Solutions">
+  <defs>
+    <linearGradient id="shield" x1="8" y1="6" x2="64" y2="66" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#092E4E"/>
+      <stop offset="0.55" stop-color="#0B6478"/>
+      <stop offset="1" stop-color="#D19A35"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="16" y1="10" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".32"/>
+      <stop offset=".52" stop-color="#FFFFFF" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="8" width="68" height="68" rx="20" fill="url(#shield)"/>
+  <path d="M40 18c7.2 4.6 14.4 5.8 21.3 6.1-.4 19.5-8.4 32.5-21.3 41.2C27.1 56.6 19.1 43.6 18.7 24.1c6.9-.3 14.1-1.5 21.3-6.1Z" fill="url(#shine)"/>
+  <path d="M27 36h26" stroke="#fff" stroke-width="4.8" stroke-linecap="round"/>
+  <path d="M40 29v31" stroke="#fff" stroke-width="4.8" stroke-linecap="round"/>
+  <path d="M28 60h24" stroke="#fff" stroke-width="4.8" stroke-linecap="round"/>
+  <path d="M28 41l-8 13h16l-8-13Z" fill="#fff" opacity=".96"/>
+  <path d="M52 41l-8 13h16l-8-13Z" fill="#fff" opacity=".96"/>
+  <path d="M34 50l4.5 4.6 10-12.2" fill="none" stroke="#F8D27A" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="92" y="39" font-family="Inter, ui-sans-serif, Arial, sans-serif" font-size="24" font-weight="830" fill="#102033" letter-spacing="-.7">Justice Tax</text>
+  <text x="92" y="63" font-family="Inter, ui-sans-serif, Arial, sans-serif" font-size="20" font-weight="670" fill="#0B6478" letter-spacing="-.25">Solutions</text>
+  <text x="244" y="62" font-family="Inter, ui-sans-serif, Arial, sans-serif" font-size="11" font-weight="700" fill="#8A6932" letter-spacing="1.8">FILE · FIX · UNDERSTAND</text>
+</svg>

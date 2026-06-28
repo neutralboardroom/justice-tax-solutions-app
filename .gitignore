@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+data/db.json
+data/*.json
+storage/uploads/
+storage/captured-official-forms/
+storage/tmp/
+uploads/
+logs/
+*.log
+*.zip
+.DS_Store
+Thumbs.db

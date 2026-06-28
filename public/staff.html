@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Staff workbench | Justice Tax Solutions</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest"><meta name="theme-color" content="#0C3B66"><link rel="stylesheet" href="/styles.css"></head><body>
+<header class="header"><nav class="nav"><a class="logo" href="/"><img src="/brand-mark.svg" alt="" aria-hidden="true"><span>Justice Tax<small>Solutions</small></span></a><div class="navlinks"><a href="/staff-cockpit.html">Staff Cockpit</a><a href="/staff-sla.html">SLA Board</a><a href="/live-client-flow.html">Client Flow</a><a href="/dashboard.html">Dashboard</a><a href="/admin.html">Admin</a><a href="/document-verification.html">Document Verification</a><a href="/official-forms.html">Official Forms</a><a href="/staff-tasks.html">Task Board</a><a href="/forms-upload-checklist.html">Upload Checklist</a><a href="/go-live.html">Live Readiness</a><a href="/pricing.html">Pricing</a></div></nav></header>
+<main class="section"><p class="kicker">Human tax review workspace</p><h1>Staff workbench</h1><p class="lead">Review urgent tax concerns, notices, paid review lanes, customer-requested professional reassurance sessions, appointment scheduling/calendar readiness, referral reward status, staff cockpit analytics, and operational readiness.</p><div class="card form-card"><label>Admin token for local/API testing</label><input name="admin_token" placeholder="Paste ADMIN_TOKEN for browser workbench only"><p class="notice-text">Production should use staff accounts, MFA, role permissions, access logs, secure document storage, payment-webhook verification, quote approval, no-sensitive-details email rules, appointment confirmations, and professional review assignment controls.</p></div><div id="staff-dashboard" class="section tight"><p>Loading staff data...</p></div><div class="grid two"><div class="card"><h3>Useful endpoints</h3><pre class="api">GET /api/staff/overview
+GET /api/staff/workflow-board
+GET /api/staff/professional-session-board
+GET /api/staff/professional-room/:caseId
+GET /api/staff/appointment-scheduling-board
+GET /api/staff/payment-operations-board
+POST /api/staff/cases/:id/quote
+POST /api/staff/quotes/:id/payment-request
+POST /api/staff/professional-session-requests/:id/appointment-message
+GET /api/staff/professional-calendar-configs
+POST /api/staff/professional-calendar-configs
+POST /api/staff/professional-session-requests/:id/schedule
+POST /api/staff/demo-data/seed
+GET /api/staff/cases
+GET /api/staff/review-queue
+GET /api/staff/professionals
+POST /api/staff/professionals
+POST /api/staff/cases/:id/assign-reviewer
+POST /api/staff/cases/:id/review-note
+POST /api/staff/cases/:id/release-to-client
+GET /api/staff/referral-attribution-verifier?code=JTS-CODE
+GET /api/staff/referral-reward-ledger
+GET /api/staff/export/cases</pre></div><div class="card"><h3>Review lanes</h3><p>Urgent collection/deadline issues, submitted human-review cases, paid cases, assigned/unassigned professional-review cases, release gates, tax notices, tax debt, and pending referral rewards.</p></div></div></main><script src="/app.js"></script></body></html>

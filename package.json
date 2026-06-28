@@ -1,0 +1,31 @@
+{
+  "name": "justice-tax-solutions",
+  "version": "0.1.38",
+  "description": "Justice Tax Solutions v0.1.38 - IRS Form 9465 official PDF capture/upload completion and coordinate lock simulation with staff approval gates.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "check": "node --check server.js && node --check src/storage.js && node --check src/aiVendors.js && node --check src/taxRules.js && node --check src/taxCatalog.js && node --check src/proReview.js && node --check src/compliance.js && node --check src/permissions.js && node --check src/competitorIntel.js && node --check src/documentIntelligence.js && node --check src/documentExtraction.js && node --check src/noticeCatalog.js && node --check src/officialForms.js && node --check src/workflowEngine.js && node --check src/liveOps.js && node --check src/liveLaunch.js && node --check src/brandUx.js && node --check src/customerExperience.js && node --check src/pilotLaunch.js && node --check src/productionConfig.js && node --check src/pilotWorkflow.js && node --check src/formAutomation.js && node --check src/pricingCatalog.js && node --check src/consultationMarket.js && node --check src/professionalSessions.js && node --check src/calendarIntegrations.js && node --check src/productionSecurity.js && node --check src/form9465Output.js && node --check src/professionalOperations.js && node --check src/paymentWorkflow.js && node --check src/marketingConversion.js && node --check src/staffCockpitAnalytics.js && node --check src/privatePilotRelease.js && node --check src/form9465VisualQa.js && node --check src/form9465FillEngine.js && node --check src/form9465CoordinateLock.js && node --check src/form9465OfficialSample.js && node --check src/form9465ClientRelease.js && node --check src/form9465FinalRelease.js && node --check src/form9465OperationalQa.js && node --check src/form9465CaptureCompletion.js && node tests/smoke-static.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.15.2",
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4",
+    "stripe": "^16.12.0",
+    "uuid": "^11.0.5"
+  }
+}
