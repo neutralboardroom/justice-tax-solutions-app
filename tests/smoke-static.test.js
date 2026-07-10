@@ -3,8 +3,10 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 function assert(cond, msg) { if (!cond) { console.error(msg); process.exit(1); } }
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-assert(pkg.version === '0.1.75', 'package version must be 0.1.75');
+assert(pkg.version === '0.1.77', 'package version must be 0.1.77');
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+const lockfile = fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8');
+assert(!/applied-caas-gateway|internal\.api\.openai\.org/.test(lockfile), 'package-lock.json must use public package registry URLs for Render deployment');
 
 const homepage = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
 for (const marker of [
@@ -18,6 +20,40 @@ for (const marker of [
 ]) assert(homepage.includes(marker), `missing v0.1.74 homepage prior-return marker: ${marker}`);
 assert(homepage.indexOf('I already filed and want a second look') < homepage.indexOf('I need to file a personal tax return'), 'prior-return review should appear as a distinct prominent choice before new-return filing');
 assert((homepage.match(/data-path="past-return-review"/g) || []).length >= 2, 'past-return review path should remain prominent and route-consistent');
+
+for (const marker of [
+  'A clear path from the first question to the next step.',
+  'Your starting path',
+  'intake-guide-title',
+  'core-acknowledgments',
+  'upload-consent-row',
+  'Clear, careful tax help',
+  'Know what is free, what is protected, and what happens next.'
+]) assert(homepage.includes(marker), `missing v0.1.76 public-homepage marker: ${marker}`);
+for (const internalMarker of [
+  'Role-based access',
+  'Platform polish update',
+  'v0.1.65 customer clarity',
+  'View platform polish audit',
+  'Official PDF intake',
+  'Data continuity safeguards',
+  'Release continuity',
+  'controlled maps',
+  'Current pilot mode'
+]) assert(!homepage.includes(internalMarker), `internal material should not appear on public homepage: ${internalMarker}`);
+assert(!homepage.includes('href="/platform-data-continuity.html">Data Continuity'), 'Data Continuity should not appear in public homepage navigation or footer');
+assert(homepage.includes('href="/free-tax-problem-truth-check.html">Tax problems'), 'public navigation should use the Tax problems label');
+const appJs = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
+for (const marker of ['initHomepageIntakePolish', 'data-core-consent', 'data-upload-consent', 'intake-guide-description']) assert(appJs.includes(marker), `missing v0.1.76 intake polish behavior: ${marker}`);
+for (const marker of ['initLanguageSwitcher', 'buildLanguageHref', 'initResponsiveNavigation', 'initResponsiveTables', 'Language / Idioma']) assert(appJs.includes(marker), `missing v0.1.77 language/responsive behavior: ${marker}`);
+const styles = fs.readFileSync(path.join(root, 'public', 'styles.css'), 'utf8');
+for (const marker of ['language-bar', 'language-switcher', 'nav-menu-toggle', 'table-scroll', 'v0.1.77 sitewide language access']) assert(styles.includes(marker), `missing v0.1.77 responsive style: ${marker}`);
+const htmlPages = fs.readdirSync(path.join(root, 'public')).filter((name) => name.endsWith('.html'));
+for (const page of htmlPages) {
+  const html = fs.readFileSync(path.join(root, 'public', page), 'utf8');
+  assert(html.includes('<script src="/app.js"'), `every HTML page must load the sitewide language/mobile script: ${page}`);
+}
+assert(fs.readFileSync(path.join(root, 'public', 'ayuda-impuestos-espanol.html'), 'utf8').includes('/?language=es&path=spanish_tax_help&source=spanish-help#start'), 'Spanish start link should use a valid query-before-hash URL');
 
 const logo = fs.readFileSync(path.join(root, 'public', 'logo.svg'), 'utf8');
 const brandMark = fs.readFileSync(path.join(root, 'public', 'brand-mark.svg'), 'utf8');
@@ -78,7 +114,7 @@ for (const marker of ['Release continuity', 'homepage-stability-rule', 'save-res
   assert(haystack.includes(marker), `missing v0.1.67 release continuity marker: ${marker}`);
 }
 
-console.log('Justice Tax Solutions v0.1.75 static smoke checks passed');
+console.log('Justice Tax Solutions v0.1.77 static smoke checks passed');
 
 for (const asset of ['logo.svg','brand-mark.svg','favicon.svg','favicon-32.png','apple-touch-icon.png','icon-512.png','site.webmanifest']) assert(fs.existsSync(path.join(root, 'public', asset)), `missing brand asset: ${asset}`);
 

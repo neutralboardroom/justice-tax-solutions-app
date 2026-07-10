@@ -1,7 +1,7 @@
 {
   "name": "justice-tax-solutions",
-  "version": "0.1.75",
-  "description": "Justice Tax Solutions v0.1.75 - integrates official IRS credits and dependents forms with controlled Schedule EIC and Form 8880 workflows, professional-review organizers, and fail-closed AI-helper routing.",
+  "version": "0.1.77",
+  "description": "Justice Tax Solutions v0.1.77 - adds a prominent sitewide English/Espa\u00f1ol language switcher and strengthens mobile/tablet navigation, touch targets, responsive layouts, and intake usability while preserving the approved brand and core flows.",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

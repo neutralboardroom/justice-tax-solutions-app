@@ -1,3 +1,15 @@
+# Justice Tax Solutions v0.1.77 — sitewide English/Español and mobile/tablet polish
+
+Adds a prominent language selector to every page, a mobile menu with accessible touch targets, tablet navigation wrapping, responsive table handling, and small-screen layout refinements while preserving the approved logo, colors, fonts, and platform flows.
+
+# Justice Tax Solutions v0.1.76 — public homepage cleanup
+
+Streamlines the live public homepage by removing internal operations content, shortening repeated sections, tightening navigation, replacing the oversized intake sidebar with a compact sticky guide, and reducing visible consent friction while preserving the approved brand, six-path flow, prior-return prominence, and all safety/release gates.
+
+## v0.1.75 — credits and dependents controlled workflows
+
+Integrates official IRS credits and dependents forms with controlled Schedule EIC and Form 8880 workflows, professional-review organizers, and fail-closed AI-helper routing.
+
 # Justice Tax Solutions v0.1.75 — credits and dependents controlled form engine
 
 Adds seven verified official IRS assets covering Schedule EIC and Forms 8332, 8862, 8867, and 8880. The build includes checksum/revision/source metadata, technical field inventory, fail-closed AI-helper routing, a controlled Schedule EIC qualifying-child organizer, a narrow deterministic 2025 Form 8880 saver’s-credit calculation lane, staff-only synthetic sample PDFs, and professional-review organizers for prior credit disallowance, custodial-parent releases, and paid-preparer due diligence.

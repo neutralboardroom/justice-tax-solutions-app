@@ -36,7 +36,7 @@ async function recordAnalyticsEvent(eventKey, payload = {}) {
 
 function setPath(path) {
   const select = qs('[name="pathway"]');
-  if (select) select.value = path;
+  if (select) { select.value = path; select.dispatchEvent(new Event('change', { bubbles: true })); }
   const form = qs('#intake');
   if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -1412,6 +1412,53 @@ function initSaveResume() {
   });
 }
 
+
+function initHomepageIntakePolish() {
+  const form = qs('#intake');
+  if (!form) return;
+
+  const pathway = form.querySelector('[name="pathway"]');
+  const guideTitle = qs('#intake-guide-title');
+  const guideDescription = qs('#intake-guide-description');
+  const pathGuidance = {
+    'personal-return-filing': ['Personal tax return', 'Organize the tax year, income records, missing documents, and review needs before any filing claim.'],
+    'business-return-filing': ['Business tax return', 'Organize entity type, business records, bookkeeping gaps, payroll or sales-tax issues, and the appropriate review route.'],
+    'past-return-review': ['Past-return review', 'Organize an already-filed personal or business return for possible missed credits, deductions, reporting issues, or amendment questions.'],
+    'free-truth-check': ['Tax notice Truth Check', 'Describe a tax notice or short redacted excerpt so the platform can identify likely deadlines, missing records, and next questions.'],
+    'fix-tax-problem': ['Tax problem starting summary', 'Organize tax debt, unfiled returns, payment concerns, penalties, liens, levies, or collection issues for careful next-step routing.'],
+    'not-sure': ['Not sure where to start', 'Describe what you know. The platform will sort the issue into filing, review, notice help, tax debt, or another appropriate starting path.']
+  };
+  const updateGuide = () => {
+    const [title, description] = pathGuidance[pathway?.value] || pathGuidance['not-sure'];
+    if (guideTitle) guideTitle.textContent = title;
+    if (guideDescription) guideDescription.textContent = description;
+  };
+  if (pathway) pathway.addEventListener('change', updateGuide);
+  updateGuide();
+
+  const core = qs('#core-acknowledgments', form);
+  const syncCore = () => qsa('[data-core-consent]', form).forEach((input) => { input.disabled = !core?.checked; });
+  if (core) core.addEventListener('change', syncCore);
+  syncCore();
+
+  const files = qs('#intake-documents', form);
+  const uploadRow = qs('#upload-consent-row', form);
+  const uploadCheck = qs('#upload-consent-combined', form);
+  const syncUpload = () => {
+    const hasFiles = Boolean(files?.files?.length);
+    if (uploadRow) uploadRow.classList.toggle('hidden', !hasFiles);
+    if (uploadCheck) {
+      uploadCheck.required = hasFiles;
+      if (!hasFiles) uploadCheck.checked = false;
+    }
+    qsa('[data-upload-consent]', form).forEach((input) => { input.disabled = !(hasFiles && uploadCheck?.checked); });
+  };
+  if (files) files.addEventListener('change', syncUpload);
+  if (uploadCheck) uploadCheck.addEventListener('change', syncUpload);
+  syncUpload();
+  form.addEventListener('submit', () => { syncCore(); syncUpload(); });
+}
+
 async function loadDataContinuityWorkbench() {
   const box = qs('#data-continuity-workbench');
   if (!box) return;
@@ -1432,10 +1479,126 @@ async function loadDataContinuityWorkbench() {
   }
 }
 
+
+function safeLanguageReturnPath(value) {
+  if (!value || typeof value !== 'string') return '/';
+  try {
+    const decoded = decodeURIComponent(value);
+    if (!decoded.startsWith('/') || decoded.startsWith('//')) return '/';
+    return decoded;
+  } catch { return '/'; }
+}
+
+function buildLanguageHref(targetLanguage) {
+  const current = new URL(window.location.href);
+  const isSpanishPage = document.documentElement.lang.toLowerCase().startsWith('es');
+  if (targetLanguage === 'es') {
+    if (isSpanishPage) return `${current.pathname}${current.search}${current.hash}`;
+    const spanish = new URL('/ayuda-impuestos-espanol.html', current.origin);
+    spanish.searchParams.set('from', `${current.pathname}${current.search}${current.hash}`);
+    for (const key of ['ref','code','utm_source','utm_medium','utm_campaign']) {
+      const value = current.searchParams.get(key);
+      if (value) spanish.searchParams.set(key, value);
+    }
+    return `${spanish.pathname}${spanish.search}`;
+  }
+  if (!isSpanishPage) return `${current.pathname}${current.search}${current.hash}`;
+  return safeLanguageReturnPath(current.searchParams.get('from') || '/');
+}
+
+function initLanguageSwitcher() {
+  if (document.querySelector('.language-bar')) return;
+  const isSpanishPage = document.documentElement.lang.toLowerCase().startsWith('es');
+  const bar = document.createElement('div');
+  bar.className = `language-bar${document.querySelector('.header') ? '' : ' standalone-language-bar'}`;
+  bar.setAttribute('role', 'navigation');
+  bar.setAttribute('aria-label', isSpanishPage ? 'Selector de idioma' : 'Language selector');
+  bar.innerHTML = `
+    <div class="language-bar-inner">
+      <span class="language-label" aria-hidden="true"><span class="language-globe">◎</span> Language / Idioma</span>
+      <div class="language-switcher" role="group" aria-label="English or Spanish">
+        <a class="language-option${isSpanishPage ? '' : ' active'}" data-language-choice="en" href="${buildLanguageHref('en')}"${isSpanishPage ? '' : ' aria-current="page"'}>English</a>
+        <a class="language-option${isSpanishPage ? ' active' : ''}" data-language-choice="es" href="${buildLanguageHref('es')}"${isSpanishPage ? ' aria-current="page"' : ''}>Español</a>
+      </div>
+    </div>`;
+  const header = document.querySelector('.header');
+  if (header) header.prepend(bar); else document.body.prepend(bar);
+
+  document.querySelectorAll('.navlinks a').forEach((link) => {
+    const label = (link.textContent || '').trim().toLowerCase();
+    if (label === 'español' || label === 'english') {
+      link.classList.add('legacy-language-link');
+      link.setAttribute('aria-hidden', 'true');
+      link.setAttribute('tabindex', '-1');
+    }
+  });
+
+  document.querySelectorAll('[data-language-choice]').forEach((link) => {
+    link.addEventListener('click', () => {
+      try { localStorage.setItem('jts_language', link.dataset.languageChoice || 'en'); } catch {}
+    });
+  });
+
+  const requestedLanguage = new URL(window.location.href).searchParams.get('language');
+  if (requestedLanguage === 'es' || (!requestedLanguage && isSpanishPage)) {
+    const languageSelect = document.querySelector('select[name="language"]');
+    if (languageSelect) {
+      const spanishOption = Array.from(languageSelect.options).find((option) => /español/i.test(option.textContent || option.value));
+      if (spanishOption) languageSelect.value = spanishOption.value;
+    }
+  }
+}
+
+function initResponsiveNavigation() {
+  document.querySelectorAll('.nav').forEach((nav, index) => {
+    const links = nav.querySelector('.navlinks');
+    if (!links || nav.querySelector('.nav-menu-toggle')) return;
+    const id = links.id || `site-navigation-${index + 1}`;
+    links.id = id;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'nav-menu-toggle';
+    button.setAttribute('aria-controls', id);
+    button.setAttribute('aria-expanded', 'false');
+    button.innerHTML = '<span aria-hidden="true">☰</span><span>Menu</span>';
+    const logo = nav.querySelector('.logo');
+    if (logo && logo.nextSibling) nav.insertBefore(button, logo.nextSibling); else nav.prepend(button);
+    nav.classList.add('js-nav-ready');
+
+    const setOpen = (open) => {
+      links.classList.toggle('is-open', open);
+      button.setAttribute('aria-expanded', String(open));
+      button.querySelector('span:last-child').textContent = open ? 'Close' : 'Menu';
+      button.querySelector('span:first-child').textContent = open ? '×' : '☰';
+    };
+    button.addEventListener('click', () => setOpen(button.getAttribute('aria-expanded') !== 'true'));
+    links.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => setOpen(false)));
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setOpen(false); });
+    window.addEventListener('resize', () => { if (window.innerWidth > 760) setOpen(false); }, { passive: true });
+  });
+}
+
+function initResponsiveTables() {
+  document.querySelectorAll('table').forEach((table) => {
+    if (table.parentElement && table.parentElement.classList.contains('table-scroll')) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-scroll';
+    wrapper.setAttribute('tabindex', '0');
+    wrapper.setAttribute('role', 'region');
+    wrapper.setAttribute('aria-label', 'Scrollable table');
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  initLanguageSwitcher();
+  initResponsiveNavigation();
+  initResponsiveTables();
   setReferralFromUrl();
   setupCounters();
   initSaveResume();
+  initHomepageIntakePolish();
   recordAnalyticsEvent('landing_page_view', { title: document.title || '' });
   await loadMe();
   qsa('[data-path]').forEach((el) => el.addEventListener('click', () => setPath(el.dataset.path)));
