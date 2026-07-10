@@ -105,14 +105,14 @@ async function submitIntake(event) {
       <h3>Tax starting summary created</h3>
       <p>Case ID: <strong>${escapeHtml(c.id)}</strong></p>
       <p>Risk level: <span class="${riskClass}">${escapeHtml(String(c.risk_level || '').toUpperCase())}</span> · Agency: <strong>${escapeHtml(c.agency)}</strong></p>
-      <p><strong>Review gate:</strong> ${escapeHtml(c.review_gate || 'starter-organizer')}</p>
-      ${c.review_plan ? `<p><strong>Suggested help:</strong> ${escapeHtml(c.review_plan.tier?.label || c.review_recommended_product || '')} · Readiness ${escapeHtml(String(c.review_plan.readinessScore || 0))}%</p>` : ''}
-      ${c.field_fill_plan ? `<p><strong>Document/field-fill readiness:</strong> ${escapeHtml(String(c.field_fill_plan.readiness_score || c.document_readiness_score || 0))}% · ${escapeHtml(String((c.field_fill_plan.field_targets || []).length))} possible field targets</p>` : ''}
+      <p><strong>Review needed:</strong> ${escapeHtml(c.review_gate || 'starter-organizer')}</p>
+      ${c.review_plan ? `<p><strong>Suggested help:</strong> ${escapeHtml(c.review_plan.tier?.label || c.review_recommended_product || '')} · Information complete ${escapeHtml(String(c.review_plan.readinessScore || 0))}%</p>` : ''}
+      ${c.field_fill_plan ? `<p><strong>Form information complete:</strong> ${escapeHtml(String(c.field_fill_plan.readiness_score || c.document_readiness_score || 0))}% · ${escapeHtml(String((c.field_fill_plan.field_targets || []).length))} possible field targets</p>` : ''}
       ${c.unified_start_result ? `<p><strong>Summary type:</strong> ${escapeHtml(c.unified_start_result.primary_summary?.title || c.intake_summary_type || '')}</p>` : ''}
       ${c.unified_start_result ? `<p><strong>Free starting point:</strong> ${c.unified_start_result.free_summary_confirmed ? 'Basic Truth Check / starting summary confirmed free' : 'Filing/review intake started'} · Initial amendment screening free: ${c.unified_start_result.initial_amendment_screening_free ? 'yes' : 'no'}</p>` : ''}
       ${c.unified_start_result?.primary_summary?.documents_needed ? `<p><strong>Documents/checklist:</strong></p><ul class="list-clean">${(c.unified_start_result.primary_summary.documents_needed || []).slice(0,6).map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
       ${c.service_fit ? `<p><strong>Suggested service fit:</strong> ${escapeHtml(c.service_fit.recommended_service?.label || '')} · ${escapeHtml(c.service_fit.reason || '')}</p>` : ''}
-      ${c.client_journey ? `<p><strong>Client journey:</strong> step ${escapeHtml(String(c.client_journey.current_step || ''))} of 10 · ${escapeHtml(c.client_journey.client_message || '')}</p>` : ''}
+      ${c.client_journey ? `<p><strong>Progress:</strong> step ${escapeHtml(String(c.client_journey.current_step || ''))} of 10 · ${escapeHtml(c.client_journey.client_message || '')}</p>` : ''}
       ${c.documents && c.documents.length ? `<p><strong>Classified uploads:</strong> ${c.documents.map(d => `${escapeHtml(d.original_name)} → ${escapeHtml(d.classification?.label || 'needs review')}`).join('<br>')}</p>` : ''}
       <p><strong>Flags:</strong> ${escapeHtml((c.flags || []).map(f => f.label).join(', ') || 'Needs review after documents are uploaded.')}</p>
       <p><strong>Missing items:</strong></p>
@@ -142,7 +142,7 @@ async function requestPaidReview(id) {
     await api(`/api/cases/${encodeURIComponent(id)}/request-paid-review`, { method: 'POST', body: JSON.stringify({ product_type: product }) });
     const checkout = await api('/api/payments/create-checkout-session', { method: 'POST', body: JSON.stringify({ case_id: id, product_type: product }) });
     if (checkout.checkout_url) window.location.href = checkout.checkout_url;
-    else alert(`Paid review request recorded: ${product}. Stripe is not configured yet, so staff must record/test the payment before release.`);
+    else alert(`Paid review request recorded: ${product}. Online payment is not available for this request yet. Our team will provide the next payment step.`);
   } catch (error) { alert(error.message); }
 }
 
@@ -153,14 +153,14 @@ async function showPaymentSummary(id) {
     const s = json.payment_summary || {};
     const quotes = (s.quotes || []).slice(0, 3).map((q) => `• ${q.product_label || q.product_type}: $${Math.round((q.amount_total_cents || 0)/100)} (${q.status})`).join('\n') || 'No quotes yet.';
     const payments = (s.payments || []).slice(0, 3).map((p) => `• ${p.product_type}: $${Math.round((p.amount_total_cents || 0)/100)} (${p.status})`).join('\n') || 'No payment requests yet.';
-    alert(`Payment quote workflow\n\nNext payment step: ${s.nextPaymentStep || ''}\nPayment required before release: ${s.paymentRequiredBeforeRelease ? 'yes' : 'no'}\n\nQuotes:\n${quotes}\n\nPayments:\n${payments}\n\nNo-sensitive-details email policy: messages should tell you to sign in rather than putting tax facts in email.`);
+    alert(`Quote and payment summary\n\nNext payment step: ${s.nextPaymentStep || ''}\nPayment required before completion: ${s.paymentRequiredBeforeRelease ? 'yes' : 'no'}\n\nQuotes:\n${quotes}\n\nPayments:\n${payments}\n\nFor privacy, email messages should direct you to sign in instead of including sensitive tax details.`);
   } catch (error) { alert(error.message); }
 }
 
 async function requestQuote(id) {
   try {
     const json = await api(`/api/cases/${encodeURIComponent(id)}/quote-request`, { method: 'POST', body: JSON.stringify({ requires_custom_quote: true, quote_note: 'Customer asked for price/scope confirmation before paid work.' }) });
-    alert(`Quote request recorded.\nStatus: ${json.quote?.status || ''}\nProduct: ${json.quote?.product_label || json.quote?.product_type || ''}\nStaff can send a quote and request approval before payment.`);
+    alert(`Quote request recorded.\nStatus: ${json.quote?.status || ''}\nProduct: ${json.quote?.product_label || json.quote?.product_type || ''}\nOur team can send a quote for your approval before payment.`);
   } catch (error) { alert(error.message); }
 }
 
@@ -173,7 +173,7 @@ async function showPreSessionReadiness(id) {
     const missingBasics = (r.missingBasics || []).map((x) => `• ${x}`).join('\n') || 'None listed';
     const docs = (r.likelyMissingDocuments || []).slice(0, 8).map((x) => `• ${x}`).join('\n') || 'None listed';
     alert([
-      `Professional session readiness: ${r.readinessScore || 0}%`,
+      `Appointment preparation: ${r.readinessScore || 0}%`,
       `Stage: ${r.stage || ''}`,
       `Route: ${route.finalLabel || route.finalLevel || ''}`,
       `Reason: ${route.plainEnglish || ''}`,
@@ -196,7 +196,7 @@ async function requestProfessionalSession(id) {
     alert([
       'Professional session request saved.',
       `Level: ${json.routing?.finalLabel || json.routing?.finalLevel || ''}`,
-      `Readiness: ${json.readiness?.readinessScore || 0}%`,
+      `Preparation: ${json.readiness?.readinessScore || 0}%`,
       `Status: ${json.request?.status || ''}`,
       '',
       json.routing?.plainEnglish || ''
@@ -231,7 +231,7 @@ async function showFieldPlan(id) {
     const json = await api(`/api/cases/${encodeURIComponent(id)}/field-fill-plan`);
     const targets = (json.field_fill_plan.field_targets || []).map((t, i) => `${i + 1}. ${t.target} from ${t.source} (${t.status})${t.extracted_value_preview ? ` = ${t.extracted_value_preview}` : ''}`).join('\n') || 'No field targets yet.';
     const missing = (json.field_fill_plan.missing_document_types || []).join(', ') || 'No obvious missing document type from the current rules.';
-    alert(`Document/field-fill readiness: ${json.field_fill_plan.readiness_score}%\n\nMissing: ${missing}\n\nTargets:\n${targets}`);
+    alert(`Form information complete: ${json.field_fill_plan.readiness_score}%\n\nMissing: ${missing}\n\nTargets:\n${targets}`);
   } catch (error) { alert(error.message); }
 }
 
@@ -316,7 +316,7 @@ async function showSimpleStatus(id) {
     const progress = (st.progress || []).map((step) => `${step.done ? '✓' : '•'} ${step.label}: ${step.clientText}`).join('\n');
     const missing = (st.missing_items || []).map((x) => `• ${x}`).join('\n');
     const blockers = (st.blockers || []).map((x) => `• ${x}`).join('\n') || 'No immediate client blockers listed.';
-    alert(`${st.title}\nStatus: ${st.plain_status}\nAgency: ${st.agency}\n\nNext step:\n${st.next_step}\n\nProgress:\n${progress}\n\nMissing or needed:\n${missing}\n\nBefore paid/review release:\n${blockers}`);
+    alert(`${st.title}\nStatus: ${st.plain_status}\nAgency: ${st.agency}\n\nNext step:\n${st.next_step}\n\nProgress:\n${progress}\n\nMissing or needed:\n${missing}\n\nBefore paid work is completed:\n${blockers}`);
   } catch (error) { alert(error.message); }
 }
 
@@ -335,7 +335,7 @@ function renderCaseCard(c) {
   const riskClass = escapeAttr(c.risk_level || 'medium');
   const label = String(c.pathway || 'tax help').replace(/[-_]/g, ' ');
   const customer = c.customer_status_copy || {};
-  const status = customer.label || (c.status === 'released_to_client' ? 'Reviewed summary available' : c.client_done_uploading ? 'Ready for staff look' : (c.documents && c.documents.length) ? 'Documents received' : 'Started');
+  const status = customer.label || (c.status === 'released_to_client' ? 'Reviewed summary available' : c.client_done_uploading ? 'Ready for team review' : (c.documents && c.documents.length) ? 'Documents received' : 'Started');
   const next = customer.next_customer_action || (c.recommended_next_steps || [])[0] || 'Upload any tax letter or tax form you have, then mark Done uploading for now.';
   const missing = (customer.missing_items || c.missing_items || []).slice(0, 3).join('; ') || 'We will confirm after review.';
   const service = c.service_fit?.recommended_service?.label || c.review_plan?.tier?.label || c.review_recommended_product || c.review_gate || 'Starting summary';
@@ -346,8 +346,8 @@ function renderCaseCard(c) {
     <p><strong>Agency:</strong> ${escapeHtml(c.agency || 'to be confirmed')} · <strong>Risk:</strong> ${escapeHtml(c.risk_level || 'medium')} ${c.payment_status ? `· <strong>Payment:</strong> ${escapeHtml(c.payment_status)}` : ''}</p>
     <p><strong>Suggested help:</strong> ${escapeHtml(service)}</p>
     <p class="small"><strong>May still need:</strong> ${escapeHtml(missing)}</p>
-    ${customer.release_guardrail ? `<p class="small"><strong>Release rule:</strong> ${escapeHtml(customer.release_guardrail)}</p>` : ''}
-    <div class="actions case-actions"><button type="button" onclick="showSimpleStatus('${escapeHtml(c.id)}')">Plain status</button><button type="button" class="secondary" onclick="showCustomerStatus('${escapeHtml(c.id)}')">Customer message</button><button type="button" class="secondary" onclick="markDoneUploading('${escapeHtml(c.id)}')">Done uploading</button><button type="button" class="secondary" onclick="showActionPlan('${escapeHtml(c.id)}')">Next steps</button><button type="button" class="secondary" onclick="showClientJourney('${escapeHtml(c.id)}')">Journey</button><button type="button" class="secondary" onclick="showFieldPlan('${escapeHtml(c.id)}')">Document map</button><button type="button" class="secondary" onclick="showCaseExtraction('${escapeHtml(c.id)}')">Document review</button><button type="button" class="secondary" onclick="submitCaseForReview('${escapeHtml(c.id)}')">Send for review</button><button type="button" class="secondary" onclick="requestPaidReview('${escapeHtml(c.id)}')">Choose paid review</button><button type="button" class="secondary" onclick="showPaymentSummary('${escapeHtml(c.id)}')">Quote approval</button><button type="button" class="secondary" onclick="requestQuote('${escapeHtml(c.id)}')">Request quote</button><button type="button" class="secondary" onclick="showPreSessionReadiness('${escapeHtml(c.id)}')">Session readiness</button><button type="button" class="secondary" onclick="requestProfessionalSession('${escapeHtml(c.id)}')">Request professional reassurance</button><button type="button" class="secondary" onclick="showAppointmentOptions('${escapeHtml(c.id)}')">Appointment options</button><button type="button" class="secondary" onclick="requestAppointmentScheduling('${escapeHtml(c.id)}')">Request scheduling</button><button type="button" class="secondary" onclick="showReleaseSummary('${escapeHtml(c.id)}')">Reviewed summary</button></div>
+    ${customer.release_guardrail ? `<p class="small"><strong>Before completion:</strong> ${escapeHtml(customer.release_guardrail)}</p>` : ''}
+    <div class="actions case-actions"><button type="button" onclick="showSimpleStatus('${escapeHtml(c.id)}')">Plain status</button><button type="button" class="secondary" onclick="showCustomerStatus('${escapeHtml(c.id)}')">Status message</button><button type="button" class="secondary" onclick="markDoneUploading('${escapeHtml(c.id)}')">Done uploading</button><button type="button" class="secondary" onclick="showActionPlan('${escapeHtml(c.id)}')">Next steps</button><button type="button" class="secondary" onclick="showClientJourney('${escapeHtml(c.id)}')">Progress</button><button type="button" class="secondary" onclick="showFieldPlan('${escapeHtml(c.id)}')">Information checklist</button><button type="button" class="secondary" onclick="showCaseExtraction('${escapeHtml(c.id)}')">Document review</button><button type="button" class="secondary" onclick="submitCaseForReview('${escapeHtml(c.id)}')">Send for review</button><button type="button" class="secondary" onclick="requestPaidReview('${escapeHtml(c.id)}')">Choose paid review</button><button type="button" class="secondary" onclick="showPaymentSummary('${escapeHtml(c.id)}')">Quote approval</button><button type="button" class="secondary" onclick="requestQuote('${escapeHtml(c.id)}')">Request quote</button><button type="button" class="secondary" onclick="showPreSessionReadiness('${escapeHtml(c.id)}')">Prepare for appointment</button><button type="button" class="secondary" onclick="requestProfessionalSession('${escapeHtml(c.id)}')">Request professional reassurance</button><button type="button" class="secondary" onclick="showAppointmentOptions('${escapeHtml(c.id)}')">Appointment options</button><button type="button" class="secondary" onclick="requestAppointmentScheduling('${escapeHtml(c.id)}')">Request scheduling</button><button type="button" class="secondary" onclick="showReleaseSummary('${escapeHtml(c.id)}')">Reviewed summary</button></div>
   </div>`;
 }
 
@@ -399,7 +399,7 @@ async function loadStaff() {
     const messageRows = (paymentBoard.board?.messageLane || []).slice(0,6).map(m => `<div class="mini-row"><strong>${escapeHtml(m.template_key || '')}</strong><br><span>${escapeHtml(m.email || '')} · ${escapeHtml(m.status || '')}</span></div>`).join('') || '<p>No queued transactional messages yet.</p>';
     const appointmentMessageRows = (paymentBoard.board?.appointmentMessagingLane || []).slice(0,6).map(a => `<div class="mini-row"><strong>${escapeHtml(a.meeting_provider || 'appointment')}</strong><br><span>${escapeHtml(a.email || '')} · ${escapeHtml(a.appointment_start || '')} · confirmation ${escapeHtml(a.confirmation_message_sent_at ? 'sent' : 'needed')}</span></div>`).join('') || '<p>No appointment confirmations needed yet.</p>';
 
-    box.innerHTML = `<div class="stat-row"><div class="stat"><strong>${overview.lanes.urgent}</strong>Urgent</div><div class="stat"><strong>${overview.lanes.reviewRequests}</strong>Review requests</div><div class="stat"><strong>${overview.lanes.unreleased}</strong>Unreleased</div><div class="stat"><strong>${overview.lanes.referralsPending}</strong>Referral rewards</div><div class="stat"><strong>${(docQueue.cases || []).filter(c => c.client_done_uploading).length}</strong>Done uploading</div></div>${readinessWarnings ? `<p class="notice-text">Production gaps: ${escapeHtml(readinessWarnings)}</p>` : ''}<div class="card wide"><h2>Production workflow board</h2><p class="notice-text">Cases are grouped by the next safe operational action: intake, documents, missing info, professional review, client approval, and release gate.</p><div class="grid two">${workflowRows}</div><div class="actions"><button type="button" class="secondary" onclick="seedDemoData()">Seed safe demo cases</button></div></div><div class="card wide"><h2>Professional session board</h2><p class="notice-text">Professionals can be routed because the case requires it or because the customer wants reassurance and confidence.</p><div class="stat-row"><div class="stat"><strong>${escapeHtml(String(sessionSummary.requestedNeedsCleanup || 0))}</strong>Need cleanup</div><div class="stat"><strong>${escapeHtml(String(sessionSummary.readyForConfirmation || 0))}</strong>Ready</div><div class="stat"><strong>${escapeHtml(String(sessionSummary.quoteApprovalNeeded || 0))}</strong>Quote approval</div></div><div class="grid two"><div><h3>Requested sessions</h3>${requestedSessions}</div><div><h3>Suggested review sessions</h3>${suggestedSessions}</div></div></div><div class="card wide"><h2>Payment quote workflow + appointment confirmations</h2><p class="notice-text">Quote approval, payment requests, receipts, Appointment confirmations, reminders, reschedule/cancel events, and No-sensitive-details email messaging are tracked before release or professional time.</p><div class="stat-row"><div class="stat"><strong>${escapeHtml(String(payCounts.quotes_need_customer_approval || 0))}</strong>Quote approval</div><div class="stat"><strong>${escapeHtml(String(payCounts.payment_requests_unpaid || 0))}</strong>Unpaid</div><div class="stat"><strong>${escapeHtml(String(payCounts.messages_queued_manual_send || 0))}</strong>Messages queued</div><div class="stat"><strong>${escapeHtml(String(payCounts.appointment_confirmations_needed || 0))}</strong>Confirmations</div></div><div class="grid two"><div><h3>Quotes</h3>${quoteRows}</div><div><h3>Payments</h3>${paymentRows}</div><div><h3>Safe email/message queue</h3>${messageRows}</div><div><h3>Appointment messaging</h3>${appointmentMessageRows}</div></div></div><div class="card wide"><h2>Professional operations + credential verification</h2><p class="notice-text">Professional operations now checks credential verification, reviewer disclosure, assignment readiness, signoff records, and renewal monitoring before final-output release.</p><div class="stat-row"><div class="stat"><strong>${escapeHtml(String(opsReadiness.approved_professional_count || 0))}</strong>Approved pros</div><div class="stat"><strong>${escapeHtml(String(opsReadiness.assignment_summary?.cases_needing_assignment || 0))}</strong>Need assignment</div><div class="stat"><strong>${escapeHtml(String(opsReadiness.credential_renewal_queue_count || 0))}</strong>Credential queue</div></div><div class="grid two"><div><h3>Role readiness</h3>${roleRows}</div><div><h3>Credential verification queue</h3>${credentialRows}</div></div><p class="small">Client-facing reviewer disclosure is available from /api/cases/:id/reviewer-disclosure after assignment/signoff.</p></div><div class="grid two"><div><h2>Review queue</h2>${(queue.queue || []).slice(0,20).map(c => `<div class="card case-card ${escapeAttr(c.risk_level)}"><h3>${escapeHtml(c.pathway)} · ${escapeHtml(c.email || 'no email')}</h3><p>Status: ${escapeHtml(c.status)} · Risk: ${escapeHtml(c.risk_level)} · Agency: ${escapeHtml(c.agency)}</p><p>Recommended: ${escapeHtml(c.review_plan?.tier?.label || c.review_gate || '')} · Readiness ${escapeHtml(String(c.review_plan?.readinessScore || 0))}%</p><p>Assigned: ${escapeHtml(c.assigned_professional_id || 'unassigned')}</p></div>`).join('') || '<p>No cases in review queue yet.</p>'}</div><div><h2>Document review queue</h2>${(docQueue.cases || []).slice(0,10).map(c => `<div class="card case-card ${escapeAttr(c.risk_level)}"><h3>${escapeHtml(c.pathway)} · ${escapeHtml(c.email || 'no email')}</h3><p>Docs: ${escapeHtml(String(c.document_count || 0))} · Readiness: ${escapeHtml(String(c.document_readiness_score || 0))}% · Done uploading: ${c.client_done_uploading ? 'yes' : 'no'}</p><p>Missing: ${escapeHtml((c.missing_document_types || []).join(', ') || 'none flagged')}</p></div>`).join('') || '<p>No document review cases yet.</p>'}<h2>Professionals</h2>${(pros.professionals || []).slice(0,20).map(p => `<div class="card"><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.role_label || p.role_key)} · ${escapeHtml(p.email)}</p><p>${escapeHtml(p.credentials || '')}</p><p>Compliance score: ${escapeHtml(String(p.compliance_score || 0))}% · PTIN: ${escapeHtml(p.ptin_status || 'not recorded')} · credential verification: ${escapeHtml(p.verification_plan?.approved_for_assignment ? 'approved' : 'not ready')}</p><p class="small">Reviewer disclosure: ${escapeHtml(p.verification_plan?.disclosure || '')}</p></div>`).join('') || '<p>No professionals created yet. Use POST /api/staff/professionals.</p>'}</div></div>`;
+    box.innerHTML = `<div class="stat-row"><div class="stat"><strong>${overview.lanes.urgent}</strong>Urgent</div><div class="stat"><strong>${overview.lanes.reviewRequests}</strong>Review requests</div><div class="stat"><strong>${overview.lanes.unreleased}</strong>Unreleased</div><div class="stat"><strong>${overview.lanes.referralsPending}</strong>Referral rewards</div><div class="stat"><strong>${(docQueue.cases || []).filter(c => c.client_done_uploading).length}</strong>Done uploading</div></div>${readinessWarnings ? `<p class="notice-text">Production gaps: ${escapeHtml(readinessWarnings)}</p>` : ''}<div class="card wide"><h2>Production workflow board</h2><p class="notice-text">Cases are grouped by the next safe operational action: intake, documents, missing info, professional review, client approval, and release gate.</p><div class="grid two">${workflowRows}</div><div class="actions"><button type="button" class="secondary" onclick="seedDemoData()">Seed safe demo cases</button></div></div><div class="card wide"><h2>Professional session board</h2><p class="notice-text">Professionals can be routed because the case requires it or because the customer wants reassurance and confidence.</p><div class="stat-row"><div class="stat"><strong>${escapeHtml(String(sessionSummary.requestedNeedsCleanup || 0))}</strong>Need cleanup</div><div class="stat"><strong>${escapeHtml(String(sessionSummary.readyForConfirmation || 0))}</strong>Ready</div><div class="stat"><strong>${escapeHtml(String(sessionSummary.quoteApprovalNeeded || 0))}</strong>Quote approval</div></div><div class="grid two"><div><h3>Requested sessions</h3>${requestedSessions}</div><div><h3>Suggested review sessions</h3>${suggestedSessions}</div></div></div><div class="card wide"><h2>Quote and payment summary + appointment confirmations</h2><p class="notice-text">Quote approval, payment requests, receipts, Appointment confirmations, reminders, reschedule/cancel events, and No-sensitive-details email messaging are tracked before release or professional time.</p><div class="stat-row"><div class="stat"><strong>${escapeHtml(String(payCounts.quotes_need_customer_approval || 0))}</strong>Quote approval</div><div class="stat"><strong>${escapeHtml(String(payCounts.payment_requests_unpaid || 0))}</strong>Unpaid</div><div class="stat"><strong>${escapeHtml(String(payCounts.messages_queued_manual_send || 0))}</strong>Messages queued</div><div class="stat"><strong>${escapeHtml(String(payCounts.appointment_confirmations_needed || 0))}</strong>Confirmations</div></div><div class="grid two"><div><h3>Quotes</h3>${quoteRows}</div><div><h3>Payments</h3>${paymentRows}</div><div><h3>Safe email/message queue</h3>${messageRows}</div><div><h3>Appointment messaging</h3>${appointmentMessageRows}</div></div></div><div class="card wide"><h2>Professional operations + credential verification</h2><p class="notice-text">Professional operations now checks credential verification, reviewer disclosure, assignment readiness, signoff records, and renewal monitoring before final-output release.</p><div class="stat-row"><div class="stat"><strong>${escapeHtml(String(opsReadiness.approved_professional_count || 0))}</strong>Approved pros</div><div class="stat"><strong>${escapeHtml(String(opsReadiness.assignment_summary?.cases_needing_assignment || 0))}</strong>Need assignment</div><div class="stat"><strong>${escapeHtml(String(opsReadiness.credential_renewal_queue_count || 0))}</strong>Credential queue</div></div><div class="grid two"><div><h3>Role readiness</h3>${roleRows}</div><div><h3>Credential verification queue</h3>${credentialRows}</div></div><p class="small">Client-facing reviewer disclosure is available from /api/cases/:id/reviewer-disclosure after assignment/signoff.</p></div><div class="grid two"><div><h2>Review queue</h2>${(queue.queue || []).slice(0,20).map(c => `<div class="card case-card ${escapeAttr(c.risk_level)}"><h3>${escapeHtml(c.pathway)} · ${escapeHtml(c.email || 'no email')}</h3><p>Status: ${escapeHtml(c.status)} · Risk: ${escapeHtml(c.risk_level)} · Agency: ${escapeHtml(c.agency)}</p><p>Recommended: ${escapeHtml(c.review_plan?.tier?.label || c.review_gate || '')} · Readiness ${escapeHtml(String(c.review_plan?.readinessScore || 0))}%</p><p>Assigned: ${escapeHtml(c.assigned_professional_id || 'unassigned')}</p></div>`).join('') || '<p>No cases in review queue yet.</p>'}</div><div><h2>Document review queue</h2>${(docQueue.cases || []).slice(0,10).map(c => `<div class="card case-card ${escapeAttr(c.risk_level)}"><h3>${escapeHtml(c.pathway)} · ${escapeHtml(c.email || 'no email')}</h3><p>Docs: ${escapeHtml(String(c.document_count || 0))} · Readiness: ${escapeHtml(String(c.document_readiness_score || 0))}% · Done uploading: ${c.client_done_uploading ? 'yes' : 'no'}</p><p>Missing: ${escapeHtml((c.missing_document_types || []).join(', ') || 'none flagged')}</p></div>`).join('') || '<p>No document review cases yet.</p>'}<h2>Professionals</h2>${(pros.professionals || []).slice(0,20).map(p => `<div class="card"><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.role_label || p.role_key)} · ${escapeHtml(p.email)}</p><p>${escapeHtml(p.credentials || '')}</p><p>Compliance score: ${escapeHtml(String(p.compliance_score || 0))}% · PTIN: ${escapeHtml(p.ptin_status || 'not recorded')} · credential verification: ${escapeHtml(p.verification_plan?.approved_for_assignment ? 'approved' : 'not ready')}</p><p class="small">Reviewer disclosure: ${escapeHtml(p.verification_plan?.disclosure || '')}</p></div>`).join('') || '<p>No professionals created yet. Use POST /api/staff/professionals.</p>'}</div></div>`;
   } catch (error) { box.innerHTML = `<p>${escapeHtml(error.message)}</p><p class="notice-text">Use x-admin-token via API, or sign in with a staff account.</p>`; }
 }
 
@@ -1494,28 +1494,30 @@ function buildLanguageHref(targetLanguage) {
   const isSpanishPage = document.documentElement.lang.toLowerCase().startsWith('es');
   if (targetLanguage === 'es') {
     if (isSpanishPage) return `${current.pathname}${current.search}${current.hash}`;
-    const spanish = new URL('/ayuda-impuestos-espanol.html', current.origin);
-    spanish.searchParams.set('from', `${current.pathname}${current.search}${current.hash}`);
+    const spanish = document.body.matches('[data-public-page="true"]') ? new URL(current.href) : new URL('/ayuda-impuestos-espanol.html', current.origin);
+    spanish.searchParams.set('language', 'es');
+    if (!document.body.matches('[data-public-page="true"]')) spanish.searchParams.set('from', `${current.pathname}${current.search}${current.hash}`);
     for (const key of ['ref','code','utm_source','utm_medium','utm_campaign']) {
       const value = current.searchParams.get(key);
       if (value) spanish.searchParams.set(key, value);
     }
     return `${spanish.pathname}${spanish.search}`;
   }
+  if (document.body.matches('[data-public-page="true"]')) { current.searchParams.delete('language'); return `${current.pathname}${current.search}${current.hash}`; }
   if (!isSpanishPage) return `${current.pathname}${current.search}${current.hash}`;
   return safeLanguageReturnPath(current.searchParams.get('from') || '/');
 }
 
 function initLanguageSwitcher() {
   if (document.querySelector('.language-bar')) return;
-  const isSpanishPage = document.documentElement.lang.toLowerCase().startsWith('es');
+  const isSpanishPage = isSpanishExperience();
   const bar = document.createElement('div');
   bar.className = `language-bar${document.querySelector('.header') ? '' : ' standalone-language-bar'}`;
   bar.setAttribute('role', 'navigation');
   bar.setAttribute('aria-label', isSpanishPage ? 'Selector de idioma' : 'Language selector');
   bar.innerHTML = `
     <div class="language-bar-inner">
-      <span class="language-label" aria-hidden="true"><span class="language-globe">◎</span> Language / Idioma</span>
+      <span class="language-accessible-label sr-only">Choose language / Seleccione idioma</span><span class="language-globe" aria-hidden="true">◎</span>
       <div class="language-switcher" role="group" aria-label="English or Spanish">
         <a class="language-option${isSpanishPage ? '' : ' active'}" data-language-choice="en" href="${buildLanguageHref('en')}"${isSpanishPage ? '' : ' aria-current="page"'}>English</a>
         <a class="language-option${isSpanishPage ? ' active' : ''}" data-language-choice="es" href="${buildLanguageHref('es')}"${isSpanishPage ? ' aria-current="page"' : ''}>Español</a>
@@ -1591,8 +1593,127 @@ function initResponsiveTables() {
   });
 }
 
+
+
+// v0.1.79 unified public navigation and Spanish-language parity
+const JTS_PUBLIC_NAV_EN = [
+  ['Personal returns','/file-personal-tax-return.html'],
+  ['Business taxes','/business-taxes.html'],
+  ['Review past returns','/review-past-returns.html'],
+  ['Tax problems','/taxpayer-action-center.html'],
+  ['Pricing','/pricing.html'],
+  ['For tax professionals','/tax-professionals.html'],
+  ['Sign in','/signin.html']
+];
+const JTS_PUBLIC_NAV_ES = [
+  ['Declaraciones personales','/file-personal-tax-return.html?language=es'],
+  ['Impuestos de negocios','/business-taxes.html?language=es'],
+  ['Revisar declaraciones anteriores','/review-past-returns.html?language=es'],
+  ['Problemas de impuestos','/taxpayer-action-center.html?language=es'],
+  ['Precios','/pricing.html?language=es'],
+  ['Para profesionales de impuestos','/tax-professionals.html?language=es'],
+  ['Iniciar sesión','/signin.html?language=es']
+];
+
+function isSpanishExperience() {
+  const url = new URL(window.location.href);
+  return document.documentElement.lang.toLowerCase().startsWith('es') || url.searchParams.get('language') === 'es' || localStorage.getItem('jts_language') === 'es';
+}
+function withSpanishParam(href) {
+  if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return href;
+  try {
+    const u = new URL(href, window.location.origin);
+    if (u.origin !== window.location.origin) return href;
+    u.searchParams.set('language','es');
+    return `${u.pathname}${u.search}${u.hash}`;
+  } catch { return href; }
+}
+function initUniformPublicNavigation() {
+  if (!document.body.matches('[data-public-page="true"]')) return;
+  const spanish = isSpanishExperience();
+  const nav = document.querySelector('.header .nav');
+  if (!nav) return;
+  let logo = nav.querySelector('.logo');
+  if (!logo) {
+    logo = document.createElement('a'); logo.className='logo'; logo.href='/';
+    logo.innerHTML='<img alt="" aria-hidden="true" src="/brand-mark.svg"><span>Justice Tax<small>Solutions</small></span>';
+    nav.prepend(logo);
+  }
+  const links = nav.querySelector('.navlinks') || document.createElement('div');
+  links.className='navlinks uniform-public-nav';
+  const items = spanish ? JTS_PUBLIC_NAV_ES : JTS_PUBLIC_NAV_EN;
+  links.innerHTML = items.map(([label,href]) => `<a href="${href}">${label}</a>`).join('') + `<a class="cta" href="/${spanish ? '?language=es' : ''}#start">${spanish ? 'Empezar gratis' : 'Start free'}</a>`;
+  if (!links.parentNode) nav.appendChild(links);
+}
+
+const JTS_ES_EXACT = {
+  'Start free':'Empezar gratis','Menu':'Menú','Close':'Cerrar','Sign in':'Iniciar sesión','Create account':'Crear cuenta',
+  'Pricing':'Precios','Contact':'Contacto','Privacy':'Privacidad','Security':'Seguridad','Terms':'Términos','Disclaimer':'Aviso legal','FAQ':'Preguntas frecuentes',
+  'Personal tax return':'Declaración de impuestos personal','Business tax return':'Declaración de impuestos de negocio','Review past returns':'Revisar declaraciones anteriores',
+  'Tax notice or letter':'Aviso o carta de impuestos','Tax debt or payment plan':'Deuda de impuestos o plan de pago','Not sure where to start':'No sé por dónde empezar',
+  'Tell us the basics':'Cuéntenos lo básico','See what is missing':'Vea qué información falta','Choose whether to continue':'Decida si desea continuar',
+  'Create my starting summary':'Crear mi resumen inicial','Create account first':'Crear una cuenta primero','Resume saved work':'Continuar trabajo guardado',
+  'Free first step':'Primer paso gratis','Share carefully':'Comparta información con cuidado','Save and return':'Guarde y continúe después',
+  'Document safety':'Seguridad de documentos','Go to dashboard':'Ir al panel','Dashboard':'Panel','My cases':'Mis casos','Case status':'Estado del caso',
+  'Next steps':'Próximos pasos','Missing items':'Información pendiente','Recommended next steps':'Próximos pasos recomendados','Suggested help':'Ayuda sugerida',
+  'Review needed':'Revisión necesaria','Human review':'Revisión humana','Professional review':'Revisión profesional','Submit for human tax review':'Enviar para revisión humana',
+  'Choose paid review':'Elegir revisión pagada','Done uploading for now':'Terminé de subir por ahora','There was a problem:':'Hubo un problema:',
+  'For tax professionals':'Para profesionales de impuestos','Full name':'Nombre completo','Professional email':'Correo electrónico profesional',
+  'Credential or professional role':'Credencial o función profesional','State or primary service area':'Estado o área principal de servicio',
+  'Areas of experience':'Áreas de experiencia','Continue inquiry':'Continuar consulta','Select one':'Seleccione una opción'
+};
+function translateCommonSpanishUi(root=document) {
+  if (!isSpanishExperience()) return;
+  document.documentElement.lang='es';
+  document.title = document.title.replace(' | Justice Tax Solutions',' | Justice Tax Solutions');
+  const selectors='h1,h2,h3,h4,p,li,label,button,a,option,legend,th,td,span,strong';
+  root.querySelectorAll(selectors).forEach((el) => {
+    if (el.children.length) return;
+    const raw=(el.textContent||'').trim();
+    if (JTS_ES_EXACT[raw]) el.textContent=JTS_ES_EXACT[raw];
+  });
+  root.querySelectorAll('input[placeholder],textarea[placeholder]').forEach((el)=>{
+    const p=el.getAttribute('placeholder')||'';
+    const map={
+      'Tell us what happened, what you received, and what you are worried about.':'Explique qué ocurrió, qué recibió y qué le preocupa.',
+      'For example: individual returns, business returns, amended returns, IRS notices, collections, audits, or state tax matters.':'Por ejemplo: declaraciones personales, declaraciones de negocios, declaraciones corregidas, avisos del IRS, cobros, auditorías o asuntos estatales.'
+    };
+    if(map[p]) el.setAttribute('placeholder',map[p]);
+  });
+  root.querySelectorAll('a[href]').forEach((a)=>{
+    if (a.closest('.language-switcher')) return;
+    a.setAttribute('href',withSpanishParam(a.getAttribute('href')));
+  });
+}
+
+function initSpanishDynamicTranslation() {
+  if (!isSpanishExperience() || !window.MutationObserver) return;
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) translateCommonSpanishUi(node);
+      });
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function spanishText(value) {
+  if (!isSpanishExperience()) return value;
+  const map={
+    'Creating your tax concern summary...':'Creando su resumen inicial de impuestos...',
+    'Creating account...':'Creando su cuenta...','Signing in...':'Iniciando sesión...',
+    'Intake failed.':'No se pudo completar el inicio.','Needs review after documents are uploaded.':'Necesita revisión después de compartir la información permitida.'
+  };
+  return map[value] || value;
+}
+
+
 document.addEventListener('DOMContentLoaded', async () => {
+  initUniformPublicNavigation();
   initLanguageSwitcher();
+  translateCommonSpanishUi();
+  initSpanishDynamicTranslation();
   initResponsiveNavigation();
   initResponsiveTables();
   setReferralFromUrl();

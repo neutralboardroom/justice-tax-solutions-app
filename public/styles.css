@@ -349,7 +349,7 @@ pre.api { white-space: pre-wrap; background:#111827; color:#e5e7eb; border-radiu
 }
 
 
-/* v0.1.77 sitewide language access and responsive navigation */
+/* Sitewide language access and responsive navigation */
 .language-bar {
   background: linear-gradient(90deg, #eef7f8 0%, #f8fbfd 100%);
   border-bottom: 1px solid rgba(12,92,120,.16);
@@ -377,7 +377,7 @@ pre.api { white-space: pre-wrap; background:#111827; color:#e5e7eb; border-radiu
   place-items: center;
   border: 1px solid rgba(12,92,120,.34);
   border-radius: 999px;
-  margin-right: 4px;
+  margin-right: 0;
   color: var(--brand);
   font-size: .78rem;
 }
@@ -436,7 +436,7 @@ pre, code { overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   body { overflow-x: hidden; }
   .language-bar-inner { min-height: 52px; padding: 6px 14px; justify-content: space-between; }
-  .language-label { font-size: .79rem; }
+  .language-globe { flex: 0 0 auto; }
   .language-option { min-height: 40px; padding: 8px 13px; }
   .header .nav.js-nav-ready {
     display: grid;
@@ -495,3 +495,12 @@ pre, code { overflow-wrap: anywhere; }
   h1 { font-size: clamp(1.9rem, 11vw, 2.7rem); }
   h2 { font-size: clamp(1.3rem, 7vw, 1.8rem); }
 }
+
+.sr-only { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
+
+/* v0.1.79 uniform public navigation and professional-network page */
+.uniform-public-nav{align-items:center}
+.uniform-public-nav a{white-space:nowrap}
+.service-page form.grid label.wide,.service-page form.grid .wide{grid-column:1/-1}
+@media (max-width:1180px){.uniform-public-nav{gap:8px}.uniform-public-nav a{font-size:.91rem;padding-inline:8px}}
+@media (max-width:920px){.uniform-public-nav a{white-space:normal}}

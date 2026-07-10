@@ -1,4 +1,8 @@
-# Justice Tax Solutions v0.1.77 — sitewide English/Español and mobile/tablet polish
+# Justice Tax Solutions v0.1.79 — Spanish parity, uniform navigation, and professional network inquiry
+
+This build adds one consistent public menu across the platform, expands Spanish-language parity for public pages and common customer interactions, adds a customer-facing page for qualified tax professionals interested in joining the network, and continues the public-language cleanup.
+
+# Justice Tax Solutions v0.1.78 — sitewide English/Español and mobile/tablet polish
 
 Adds a prominent language selector to every page, a mobile menu with accessible touch targets, tablet navigation wrapping, responsive table handling, and small-screen layout refinements while preserving the approved logo, colors, fonts, and platform flows.
 
@@ -148,3 +152,13 @@ See `docs/v0.1.68-irs-tax-debt-resolution-form-engine.md`. Official IRS PDFs are
 
 ## v0.1.70
 Adds production operational evidence gates, automated technical semantic mapping for all inventoried fields, sample-filled output generation, automated page render QA, and fail-closed human/professional/owner approval controls. See `docs/v0.1.70-production-operational-gates.md`.
+
+
+## v0.1.78 — public-language and internal-workspace separation
+- Removed the visible Language / Idioma label while preserving the prominent English / Español toggle and accessible labeling.
+- Audited every HTML page for customer-facing build, pilot, QA, release, mapping, and version language.
+- Rewrote public tax-help pages in plain customer language.
+- Removed release-note and continuity blocks from public pages.
+- Rebuilt the public Official Forms page as a customer guide and preserved administration tools in a staff-only workspace.
+- Added server-side staff access protection and no-index controls for operational, QA, deployment, and owner pages.
+- Preserved current public workflows, dashboards, responsive navigation, form engines, staff tools, and security boundaries.

@@ -153,6 +153,21 @@ app.use(cookieParser());
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 app.use(rateLimit({ windowMs: 60 * 1000, limit: 180 }));
+
+const INTERNAL_HTML_PAGES = new Set(["admin.html", "brand-system.html", "competitive-intelligence.html", "controlled-public-launch-closeout.html", "customer-experience.html", "deployment-readiness.html", "document-verification.html", "experience-polish.html", "forms-upload-checklist.html", "founder-next-steps.html", "go-live.html", "launch-readiness.html", "live-client-flow.html", "official-form-release-center.html", "official-forms-admin.html", "official-pdf-intake.html", "pilot-readiness.html", "platform-continuity-polish.html", "platform-data-continuity.html", "platform-polish-audit.html", "platform-readiness-workbench.html", "prior-return-review-marketing.html", "private-pilot-release.html", "production-config.html", "production-operational-gates.html", "public-launch-audit.html", "public-launch-roadmap.html", "real-user-launch-center.html", "refund-efile-bank-products.html", "release-continuity.html", "security-plan.html", "spanish-language-audit.html", "staff-cockpit.html", "staff-pilot-ops.html", "staff-sla.html", "staff-tasks.html", "staff.html", "unified-tax-start-audit.html"]);
+
+app.use((req, res, next) => {
+  const requestedPage = String(req.path || '').replace(/^\/+/, '');
+  if (!INTERNAL_HTML_PAGES.has(requestedPage)) return next();
+  const user = currentUser(req);
+  if (!user || !isStaff(user)) {
+    const nextPath = encodeURIComponent(req.originalUrl || `/${requestedPage}`);
+    return res.redirect(302, `/signin.html?next=${nextPath}&reason=staff-access-required`);
+  }
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  return next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 function safeDisplay(value, max = 1000) {

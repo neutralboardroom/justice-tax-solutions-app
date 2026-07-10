@@ -1,7 +1,7 @@
 {
   "name": "justice-tax-solutions",
-  "version": "0.1.77",
-  "description": "Justice Tax Solutions v0.1.77 - adds a prominent sitewide English/Espa\u00f1ol language switcher and strengthens mobile/tablet navigation, touch targets, responsive layouts, and intake usability while preserving the approved brand and core flows.",
+  "version": "0.1.79",
+  "description": "Justice Tax Solutions v0.1.79 - Spanish-language parity, uniform public navigation, tax-professional recruitment, and continued customer-language cleanup.",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
