@@ -102,12 +102,15 @@ async function submitIntake(event) {
     await recordAnalyticsEvent('intake_completed', { case_id: c.id, pathway: c.pathway, risk_level: c.risk_level });
     const riskClass = `status-${c.risk_level}`;
     if (output) output.innerHTML = `
-      <h3>Tax concern summary created</h3>
+      <h3>Tax starting summary created</h3>
       <p>Case ID: <strong>${escapeHtml(c.id)}</strong></p>
       <p>Risk level: <span class="${riskClass}">${escapeHtml(String(c.risk_level || '').toUpperCase())}</span> · Agency: <strong>${escapeHtml(c.agency)}</strong></p>
       <p><strong>Review gate:</strong> ${escapeHtml(c.review_gate || 'starter-organizer')}</p>
       ${c.review_plan ? `<p><strong>Suggested help:</strong> ${escapeHtml(c.review_plan.tier?.label || c.review_recommended_product || '')} · Readiness ${escapeHtml(String(c.review_plan.readinessScore || 0))}%</p>` : ''}
       ${c.field_fill_plan ? `<p><strong>Document/field-fill readiness:</strong> ${escapeHtml(String(c.field_fill_plan.readiness_score || c.document_readiness_score || 0))}% · ${escapeHtml(String((c.field_fill_plan.field_targets || []).length))} possible field targets</p>` : ''}
+      ${c.unified_start_result ? `<p><strong>Summary type:</strong> ${escapeHtml(c.unified_start_result.primary_summary?.title || c.intake_summary_type || '')}</p>` : ''}
+      ${c.unified_start_result ? `<p><strong>Free starting point:</strong> ${c.unified_start_result.free_summary_confirmed ? 'Basic Truth Check / starting summary confirmed free' : 'Filing/review intake started'} · Initial amendment screening free: ${c.unified_start_result.initial_amendment_screening_free ? 'yes' : 'no'}</p>` : ''}
+      ${c.unified_start_result?.primary_summary?.documents_needed ? `<p><strong>Documents/checklist:</strong></p><ul class="list-clean">${(c.unified_start_result.primary_summary.documents_needed || []).slice(0,6).map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
       ${c.service_fit ? `<p><strong>Suggested service fit:</strong> ${escapeHtml(c.service_fit.recommended_service?.label || '')} · ${escapeHtml(c.service_fit.reason || '')}</p>` : ''}
       ${c.client_journey ? `<p><strong>Client journey:</strong> step ${escapeHtml(String(c.client_journey.current_step || ''))} of 10 · ${escapeHtml(c.client_journey.client_message || '')}</p>` : ''}
       ${c.documents && c.documents.length ? `<p><strong>Classified uploads:</strong> ${c.documents.map(d => `${escapeHtml(d.original_name)} → ${escapeHtml(d.classification?.label || 'needs review')}`).join('<br>')}</p>` : ''}
@@ -767,6 +770,429 @@ async function loadStaffCalendarBoard(headers = {}) {
   } catch { return { board: { board: { summary: {} } }, configs: { calendars: { summary: {} } } }; }
 }
 
+
+async function loadTaxpayerActionCenter() {
+  const box = qs('#taxpayer-action-center');
+  if (!box) return;
+  try {
+    const json = await api('/api/tax/taxpayer-action-center');
+    const center = json.action_center || {};
+    const rules = (center.first_rules || []).map((r) => `<li>${escapeHtml(r)}</li>`).join('');
+    const paths = (center.action_paths || []).map((path) => `<div class="card"><h3>${escapeHtml(path.label || '')}</h3><p><strong>Start here:</strong> ${escapeHtml(path.user_question || '')}</p><p><strong>Gather first:</strong></p><ul>${(path.gather_first || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul><p><strong>Likely review:</strong> ${escapeHtml(path.likely_review || '')}</p><p><a class="button secondary" href="${escapeAttr(path.best_start || '/#start')}">Open this path</a></p></div>`).join('');
+    const flags = (center.escalation_flags || []).map((f) => `<li>${escapeHtml(f)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(center.headline || 'Taxpayer action center')}</h2><p><strong>Current safe mode:</strong> ${escapeHtml(center.current_safe_launch_mode || '')}</p><ul class="checklist">${rules}</ul><p class="notice-text">${escapeHtml(center.safe_document_rule || '')}</p></div><div class="grid two">${paths}</div><div class="card wide urgent-card"><h2>Escalate before acting when you see these flags</h2><ul>${flags}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function submitReviewSelfCheck(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#review-self-check-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Checking the safest review level...'; }
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const json = await api('/api/tax/review-level-self-check', { method: 'POST', body: JSON.stringify(payload) });
+    const check = json.self_check || {};
+    const reasons = (check.reasons || []).map((r) => `<li>${escapeHtml(r)}</li>`).join('');
+    const next = (check.what_to_do_now || []).map((r) => `<li>${escapeHtml(r)}</li>`).join('');
+    if (output) output.innerHTML = `<h3>${escapeHtml(check.suggested_review_level || '')}</h3><p><strong>Urgency:</strong> ${escapeHtml(check.urgency || '')}</p><p><strong>Why:</strong></p><ul>${reasons}</ul><p><strong>What to do now:</strong></p><ul>${next}</ul><p class="notice-text">${escapeHtml(check.safe_next_step || '')}</p>`;
+    await recordAnalyticsEvent('review_level_self_check_completed', { suggested_review_key: check.suggested_review_key || '', urgency: check.urgency || '' });
+  } catch (error) { if (output) output.textContent = error.message; }
+}
+
+
+async function loadTaxUrgencyTriageGuide() {
+  const box = qs('#tax-urgency-triage-guide');
+  if (!box) return;
+  try {
+    const json = await api('/api/tax/urgency-triage-guide');
+    const guide = json.guide || {};
+    const lanes = (guide.urgency_lanes || []).map((lane) => `<div class="card"><h3>${escapeHtml(lane.label || lane.level || '')}</h3><p><strong>Examples:</strong> ${escapeHtml((lane.examples || []).join(', '))}</p><p>${escapeHtml(lane.action || '')}</p></div>`).join('');
+    const gather = (guide.gather_first || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(guide.headline || '')}</h2><p>${escapeHtml(guide.safe_mode || '')}</p><p class="notice-text">${escapeHtml(guide.policy?.safety_rule || '')}</p></div><div class="grid two">${lanes}</div><div class="card wide"><h2>Gather these facts first</h2><ul class="list-clean">${gather}</ul><p class="notice-text">${escapeHtml(guide.launch_guardrail || '')}</p></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function submitTaxUrgencyTriage(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#tax-urgency-triage-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Checking urgency signals...'; }
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const json = await api('/api/tax/urgency-triage', { method: 'POST', body: JSON.stringify(payload) });
+    const triage = json.triage || {};
+    const reasons = (triage.reasons || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const steps = (triage.safe_next_steps || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const dont = (triage.do_not_do || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const deadline = triage.input_summary?.deadline || {};
+    if (output) output.innerHTML = `<h3>${escapeHtml(String(triage.urgency_level || '').toUpperCase())} priority</h3><p><strong>Issue category:</strong> ${escapeHtml(triage.category || '')}</p><p><strong>Deadline read:</strong> ${escapeHtml(deadline.interpreted || '')}${deadline.days_left !== null && deadline.days_left !== undefined ? ` · ${escapeHtml(String(deadline.days_left))} day(s) left by rough parse` : ''}</p><p><strong>Suggested review:</strong> ${escapeHtml(triage.suggested_review || '')}</p><p><strong>Why:</strong></p><ul>${reasons}</ul><p><strong>Safer next steps:</strong></p><ol>${steps}</ol><p><strong>Do not do:</strong></p><ul>${dont}</ul><p><a class="button secondary" href="${escapeAttr(triage.recommended_start_path || '/#start')}">Open recommended start path</a></p><p class="notice-text">${escapeHtml(triage.policy?.safety_rule || '')}</p>`;
+    await recordAnalyticsEvent('tax_urgency_triage_completed', { urgency_level: triage.urgency_level || '', category: triage.category || '' });
+  } catch (error) { if (output) output.textContent = error.message; }
+}
+
+
+async function loadDocumentSafetyCenter() {
+  const box = qs('#document-safety-center');
+  if (!box) return;
+  try {
+    const json = await api('/api/tax/document-safety-center');
+    const center = json.document_safety_center || {};
+    const avoid = (center.what_not_to_upload_now || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const alternatives = (center.safe_alternatives_now || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const redaction = (center.redaction_checklist || []).map((r) => `<div class="check-row warn"><strong>${escapeHtml(r.field || '')}</strong><p><strong>Safer example:</strong> ${escapeHtml(r.safe_example || '')}</p><p class="small">${escapeHtml(r.reason || '')}</p></div>`).join('');
+    const steps = (center.user_safe_start_steps || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const gates = Object.entries(center.launch_gate_snapshot || {}).map(([key, value]) => `<div class="check-row ${value ? 'ok' : 'block'}"><strong>${escapeHtml(key.replace(/_/g, ' '))}</strong><p>${value ? 'Marked ready/configured' : 'Missing or not approved yet'}</p></div>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(center.current_mode || 'Document safety mode')}</h2><p>${escapeHtml(center.user_message || '')}</p><p class="notice-text">${escapeHtml(center.policy?.production_rule || '')}</p></div><div class="card"><h2>Do not upload yet</h2><ul class="list-clean">${avoid}</ul></div><div class="card"><h2>Safe alternatives now</h2><ul class="list-clean">${alternatives}</ul></div><div class="card wide"><h2>Redaction checklist</h2><div class="grid two">${redaction}</div></div><div class="card"><h2>Safe start steps</h2><ol class="list-clean">${steps}</ol></div><div class="card"><h2>Launch gate snapshot</h2>${gates}</div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+
+async function loadPublicLaunchRoadmap() {
+  const box = qs('#public-launch-roadmap');
+  if (!box) return;
+  try {
+    const [roadmapJson, checklistJson] = await Promise.all([api('/api/platform/public-launch-roadmap'), api('/api/platform/owner-public-launch-checklist')]);
+    const roadmap = roadmapJson.roadmap || {};
+    const checklist = checklistJson.checklist || {};
+    const safeNow = (roadmap.safe_now_summary || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const phases = (roadmap.launch_phases || []).map((phase) => `<div class="card"><h3>${escapeHtml(phase.label || '')}</h3><p><strong>Status:</strong> ${escapeHtml(phase.readiness || '')}</p><p><strong>Allowed now:</strong> ${escapeHtml((phase.allowed_now || []).join(' '))}</p><p><strong>Must finish:</strong> ${escapeHtml((phase.must_finish_before_next || []).join(', ') || 'No missing items listed')}</p><p class="small"><strong>Blocked claims:</strong> ${escapeHtml((phase.blocked_claims || []).join(', '))}</p></div>`).join('');
+    const blockers = (roadmap.final_blockers_before_true_public_launch || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const checklistItems = (checklist.items || []).map((item) => `<div class="check-row ${item.done ? 'ok' : 'block'}"><strong>${escapeHtml(item.label || '')}</strong><p>${item.done ? 'Done/configured' : `Missing: ${escapeHtml((item.missing || []).join(', ') || 'not marked complete')}`}</p></div>`).join('');
+    const next = (checklist.recommended_next_three || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(roadmap.headline || '')}</h2><p><strong>Recommended current mode:</strong> ${escapeHtml(roadmap.current_recommended_mode || '')}</p><p><strong>Full public launch ready:</strong> ${roadmap.full_public_launch_ready ? 'yes' : 'no'}</p><ul class="list-clean">${safeNow}</ul><p class="notice-text">${escapeHtml(roadmap.owner_decision || '')}</p></div><div class="card wide"><h2>Launch phases</h2><div class="grid two">${phases}</div></div><div class="card"><h2>Remaining full-launch blockers</h2><ul class="list-clean">${blockers}</ul></div><div class="card"><h2>Owner next three</h2><ol>${next}</ol><p class="notice-text">${escapeHtml(checklist.staff_instruction || '')}</p></div><div class="card wide"><h2>Owner closeout checklist</h2>${checklistItems}</div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function loadPublicLaunchCloseoutPlan() {
+  const box = qs('#public-launch-closeout-plan');
+  if (!box) return;
+  try {
+    const json = await api('/api/platform/public-launch-closeout-plan');
+    const plan = json.closeout_plan || {};
+    const rows = (plan.closeout_sequence || []).map((g) => `<div class="check-row ${g.ready ? 'ok' : 'block'}"><strong>${escapeHtml(g.gate || '')}</strong><p>${escapeHtml(g.why_it_matters || '')}</p><p><strong>${g.ready ? 'Ready' : 'Missing'}:</strong> ${escapeHtml((g.missing || []).join(', ') || 'No missing items listed')}</p></div>`).join('');
+    const publicCopy = (plan.public_copy_mode_now || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const blocked = (plan.do_not_claim_yet || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(plan.recommended_launch_mode || '')}</h2><p><strong>Full public launch ready:</strong> ${plan.full_public_launch_ready ? 'yes' : 'no'}</p></div><div class="card wide"><h2>Closeout sequence</h2>${rows}</div><div class="card"><h2>Safe public copy now</h2><ul class="list-clean">${publicCopy}</ul></div><div class="card"><h2>Do not claim yet</h2><ul class="list-clean">${blocked}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+
+async function loadRealUserLaunchCenter() {
+  const box = qs('#real-user-launch-center');
+  if (!box) return;
+  try {
+    const [readinessJson, planJson] = await Promise.all([
+      api('/api/platform/real-user-launch-readiness'),
+      api('/api/platform/first-real-user-operating-plan')
+    ]);
+    const readiness = readinessJson.readiness || {};
+    const plan = planJson.operating_plan || {};
+    const gates = (readiness.gates || []).map((g) => `<div class="check-row ${g.ready ? 'ok' : 'block'}"><strong>${escapeHtml(g.label || '')}</strong><p>${g.ready ? 'Ready/configured' : `Missing: ${escapeHtml((g.missing || []).join(', ') || 'not marked ready')}`}</p></div>`).join('');
+    const allowed = (readiness.user_facing_commitment_now || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const blocked = (readiness.not_allowed_yet || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const script = (plan.user_script || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const sop = (plan.staff_sop || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const cohorts = (plan.first_10_case_acceptance_policy || []).map((row) => `<div class="card"><h3>${escapeHtml(row.category || '')}</h3><ul>${(row.examples || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`).join('');
+    const metrics = (plan.metrics_to_review_after_10_users || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(readiness.headline || 'Real-user launch readiness')}</h2><p><strong>Real users allowed now:</strong> ${readiness.real_users_allowed_now ? 'yes, controlled no-sensitive pilot only' : 'not yet'}</p><p><strong>Recommended mode:</strong> ${escapeHtml(readiness.recommended_real_user_mode || '')}</p><p class="notice-text">${escapeHtml(readiness.owner_decision || '')}</p></div><div class="card wide"><h2>Launch gates</h2>${gates}</div><div class="card"><h2>What real users can do now</h2><ul class="list-clean">${allowed}</ul></div><div class="card"><h2>Still not allowed</h2><ul class="list-clean">${blocked}</ul></div><div class="card"><h2>User invitation script</h2><ol>${script}</ol></div><div class="card"><h2>Staff operating SOP</h2><ol>${sop}</ol></div><div class="card wide"><h2>First 10 case acceptance policy</h2><div class="grid three">${cohorts}</div></div><div class="card wide"><h2>Review after 10 users</h2><ul class="list-clean">${metrics}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function submitRealUserSafetyCheck(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#real-user-safety-check-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Checking whether this is safe for the first real-user pilot...'; }
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const json = await api('/api/tax/real-user-safety-check', { method: 'POST', body: JSON.stringify(payload) });
+    const check = json.safety_check || {};
+    const reasons = (check.reasons || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const dont = (check.do_not_do || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    if (output) output.innerHTML = `<h3>${check.safe_for_real_user_pilot ? 'Safe for no-sensitive pilot start' : 'Use professional/staff review before acting'}</h3><p><strong>Lane:</strong> ${escapeHtml(check.lane || '')}</p><p><strong>Suggested next step:</strong> ${escapeHtml(check.suggested_next_step || '')}</p><p><strong>Why:</strong></p><ul>${reasons}</ul><p><strong>Do not do:</strong></p><ul>${dont}</ul><div class="actions"><a class="button secondary" href="${escapeAttr(check.safe_start_path || '/#start')}">Start free</a><a class="button secondary" href="${escapeAttr(check.review_path || '/pricing.html')}">See review levels</a><a class="button secondary" href="${escapeAttr(check.document_safety_path || '/document-safety-center.html')}">Document safety</a></div>`;
+    await recordAnalyticsEvent('real_user_safety_check_completed', { lane: check.lane || '', safe: Boolean(check.safe_for_real_user_pilot) });
+  } catch (error) { if (output) output.textContent = error.message; }
+}
+
+
+
+async function loadSafeTaxSummaryBuilderGuide() {
+  const box = qs('#safe-tax-summary-builder-guide');
+  if (!box) return;
+  try {
+    const json = await api('/api/tax/safe-tax-summary-builder-guide');
+    const guide = json.guide || {};
+    const fields = (guide.safe_summary_fields || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const never = (guide.never_include || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const value = (guide.staff_value || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(guide.title || 'Safe tax summary builder')}</h2><p>${escapeHtml(guide.purpose || '')}</p></div><div class="card"><h2>Safe to include</h2><ul>${fields}</ul></div><div class="card urgent-card"><h2>Never include here</h2><ul>${never}</ul></div><div class="card wide"><h2>Why this helps staff</h2><ul>${value}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function submitSafeTaxSummary(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#safe-tax-summary-output');
+  if (output) { output.classList.add('show'); output.innerHTML = '<div class="card"><p>Building a no-sensitive summary...</p></div>'; }
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const json = await api('/api/tax/safe-tax-summary', { method: 'POST', body: JSON.stringify(payload) });
+    const summary = json.summary || {};
+    const flags = (summary.review_guidance || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const links = (summary.safe_links || []).map((x) => `<a class="button secondary" href="${escapeAttr(x.href || '#')}">${escapeHtml(x.label || 'Open')}</a>`).join('');
+    if (output) output.innerHTML = `<div class="card wide"><h2>${summary.safe_to_submit_without_file ? 'Safe no-file summary' : 'Pause before submitting'}</h2><p><strong>Recommended lane:</strong> ${escapeHtml(summary.recommended_lane || '')}</p><p><strong>Next step:</strong> ${escapeHtml(summary.next_step || '')}</p><pre class="summary-box">${escapeHtml(summary.sanitized_summary || '')}</pre><p><strong>Review guidance:</strong></p><ul>${flags}</ul><p class="notice-text">${escapeHtml(summary.reminder || '')}</p><div class="actions">${links}</div></div>`;
+    await recordAnalyticsEvent('safe_tax_summary_built', { lane: summary.recommended_lane || '', safe: Boolean(summary.safe_to_submit_without_file) });
+  } catch (error) { if (output) output.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+
+async function loadAfterYouStartGuide() {
+  const box = qs('#after-you-start-guide');
+  if (!box) return;
+  try {
+    const json = await api('/api/tax/after-you-start-guide');
+    const guide = json.guide || {};
+    const expectations = (guide.user_expectations || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const timeline = (guide.after_submit_timeline || []).map((row) => `<div class="check-row"><strong>${escapeHtml(row.when || '')}</strong><p><strong>User sees:</strong> ${escapeHtml(row.user_sees || '')}</p><p><strong>Staff action:</strong> ${escapeHtml(row.staff_action || '')}</p></div>`).join('');
+    const prep = (guide.user_should_prepare || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const pro = (guide.immediate_professional_review_signals || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const links = (guide.safe_links || []).map((x) => `<a class="button secondary" href="${escapeAttr(x.href || '#')}">${escapeHtml(x.label || 'Open')}</a>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(guide.title || 'What happens after you start')}</h2><p>${escapeHtml(guide.purpose || '')}</p><p><strong>Current mode:</strong> ${escapeHtml(guide.current_mode || '')}</p><p class="notice-text">${escapeHtml(guide.reminder || '')}</p><div class="actions">${links}</div></div><div class="card"><h2>What to expect</h2><ul class="list-clean">${expectations}</ul></div><div class="card"><h2>What to prepare</h2><ul class="list-clean">${prep}</ul></div><div class="card wide"><h2>After-submit timeline</h2>${timeline}</div><div class="card wide urgent-card"><h2>Professional review first if you see these signals</h2><ul class="list-clean">${pro}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function submitPostSubmitExpectationCheck(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#post-submit-expectation-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Checking the safest after-submit path...'; }
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const json = await api('/api/tax/post-submit-expectation-check', { method: 'POST', body: JSON.stringify(payload) });
+    const check = json.check || {};
+    const steps = (check.recommended_next_steps || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const links = (check.safe_follow_up_links || []).map((x) => `<a class="button secondary" href="${escapeAttr(x.href || '#')}">${escapeHtml(x.label || 'Open')}</a>`).join('');
+    if (output) output.innerHTML = `<h3>${check.safe_for_controlled_real_user_start ? 'Safe controlled start' : 'Pause before acting'}</h3><p><strong>Lane:</strong> ${escapeHtml(check.lane || '')}</p><p>${escapeHtml(check.message_to_user || '')}</p><p><strong>Recommended next steps:</strong></p><ol>${steps}</ol><div class="actions">${links}</div>`;
+    await recordAnalyticsEvent('post_submit_expectation_check_completed', { lane: check.lane || '', safe: Boolean(check.safe_for_controlled_real_user_start) });
+  } catch (error) { if (output) output.textContent = error.message; }
+}
+
+async function loadFirstPublicUserStart() {
+  const box = qs('#first-public-user-start');
+  if (!box) return;
+  try {
+    const json = await api('/api/tax/first-public-user-start-guide');
+    const guide = json.guide || {};
+    const safe = (guide.safe_to_share_now || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const avoid = (guide.do_not_share_now || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const good = (guide.good_first_user_cases || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const pro = (guide.professional_first_cases || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const steps = (guide.safe_start_steps || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(guide.title || 'First public user safe start')}</h2><p>${escapeHtml(guide.user_message || '')}</p></div><div class="card"><h2>Safe to share now</h2><ul class="list-clean">${safe}</ul></div><div class="card"><h2>Do not share yet</h2><ul class="list-clean">${avoid}</ul></div><div class="card"><h2>Good first-user cases</h2><ul class="list-clean">${good}</ul></div><div class="card"><h2>Professional review first</h2><ul class="list-clean">${pro}</ul></div><div class="card wide"><h2>Safe start steps</h2><ol>${steps}</ol></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function loadRealUserGoLiveGate() {
+  const box = qs('#real-user-go-live-gate');
+  if (!box) return;
+  try {
+    const [gateJson, runbookJson] = await Promise.all([api('/api/platform/real-user-go-live-gate'), api('/api/platform/launch-day-runbook')]);
+    const gate = gateJson.gate || {};
+    const runbook = runbookJson.runbook || {};
+    const gates = (gate.gates || []).map((g) => `<div class="check-row ${g.ready ? 'ok' : 'block'}"><strong>${escapeHtml(g.label || '')}</strong><p>${g.ready ? 'Ready/configured' : `Missing: ${escapeHtml((g.missing || []).join(', ') || 'not marked ready')}`}</p></div>`).join('');
+    const before = (gate.before_inviting_next_real_user || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const dayZero = (runbook.day_zero || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const first72 = (runbook.first_72_hours || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const stop = (runbook.stop_launch_if || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(gate.title || 'Real-user go-live gate')}</h2><p><strong>Current mode:</strong> ${escapeHtml(gate.current_mode || '')}</p><p><strong>Owner answer:</strong> ${escapeHtml(gate.owner_answer || '')}</p><div class="stat-row"><div class="stat"><strong>${gate.can_invite_real_users_now ? 'Yes' : 'No'}</strong>Invite real users</div><div class="stat"><strong>${gate.can_charge_real_users_now ? 'Yes' : 'No'}</strong>Charge users</div><div class="stat"><strong>${gate.can_accept_real_sensitive_documents_now ? 'Yes' : 'No'}</strong>Sensitive docs</div><div class="stat"><strong>${gate.can_release_final_official_forms_now ? 'Yes' : 'No'}</strong>Final forms</div><div class="stat"><strong>${gate.can_claim_efile_or_agency_submission_now ? 'Yes' : 'No'}</strong>E-file claims</div></div></div><div class="card wide"><h2>Gate board</h2>${gates}</div><div class="card"><h2>Before inviting the next user</h2><ol>${before}</ol></div><div class="card"><h2>Day-zero runbook</h2><ol>${dayZero}</ol></div><div class="card"><h2>First 72 hours</h2><ol>${first72}</ol></div><div class="card"><h2>Stop launch if</h2><ul class="list-clean">${stop}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function submitPreSubmitRealUserCheck(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#pre-submit-real-user-check-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Checking whether this is safe to submit now...'; }
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const json = await api('/api/tax/pre-submit-real-user-check', { method: 'POST', body: JSON.stringify(payload) });
+    const check = json.check || {};
+    const blockers = (check.blockers || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const links = (check.safe_next_links || []).map((x) => `<a class="button secondary" href="${escapeAttr(x.href || '#')}">${escapeHtml(x.label || 'Open')}</a>`).join('');
+    if (output) output.innerHTML = `<h3>${check.safe_to_submit_now ? 'Safe to start with no file' : 'Pause and use staff/professional review first'}</h3><p><strong>Lane:</strong> ${escapeHtml(check.lane || '')}</p><p><strong>Recommended action:</strong> ${escapeHtml(check.recommended_action || '')}</p><p><strong>Detected blockers or reminders:</strong></p><ul>${blockers}</ul><p class="notice-text">${escapeHtml(check.reminder || '')}</p><div class="actions">${links}</div>`;
+    await recordAnalyticsEvent('pre_submit_real_user_check_completed', { lane: check.lane || '', safe: Boolean(check.safe_to_submit_now) });
+  } catch (error) { if (output) output.textContent = error.message; }
+}
+
+
+async function loadFirstUserFeedbackGuide() {
+  const box = qs('#first-user-feedback-guide');
+  if (!box) return;
+  try {
+    const json = await api('/api/tax/first-user-feedback-guide');
+    const guide = json.guide || {};
+    const share = (guide.what_to_share || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const avoid = (guide.do_not_share || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const watch = (guide.staff_should_watch_for || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(guide.title || 'First-user feedback loop')}</h2><p>${escapeHtml(guide.user_message || '')}</p><p class="notice-text">${escapeHtml(guide.launch_rule || '')}</p></div><div class="card"><h2>Safe to share</h2><ul class="list-clean">${share}</ul></div><div class="card"><h2>Do not share</h2><ul class="list-clean">${avoid}</ul></div><div class="card wide"><h2>What staff reviews before broader launch</h2><ul class="list-clean">${watch}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function submitFirstUserFeedback(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#first-user-feedback-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Saving safe feedback without private taxpayer details...'; }
+  try {
+    const payload = Object.fromEntries(new FormData(form).entries());
+    const json = await api('/api/tax/first-user-feedback', { method: 'POST', body: JSON.stringify(payload) });
+    const feedback = json.feedback || {};
+    const flags = [
+      feedback.sensitive_data_attempt ? 'Sensitive-data safety follow-up' : '',
+      feedback.urgent_or_high_risk_signal ? 'Urgent/high-risk issue signal' : '',
+      feedback.payment_or_professional_confusion ? 'Payment/professional scope confusion' : '',
+      feedback.government_or_law_firm_confusion ? 'Government/law-firm independence confusion' : '',
+      feedback.final_action_confusion ? 'Final filing/action confusion' : ''
+    ].filter(Boolean).map((x) => `<li>${escapeHtml(x)}</li>`).join('') || '<li>No major blocker signal detected.</li>';
+    if (output) output.innerHTML = `<h3>Feedback received</h3><p><strong>Lane:</strong> ${escapeHtml(feedback.lane || '')}</p><p>${escapeHtml(feedback.user_message || '')}</p><p><strong>Signals:</strong></p><ul>${flags}</ul><p><strong>Staff action:</strong> ${escapeHtml(feedback.next_staff_action || '')}</p>`;
+    form.reset();
+    await recordAnalyticsEvent('first_user_feedback_submitted', { lane: feedback.lane || '', blocker: !feedback.safe_to_continue_inviting_users });
+  } catch (error) { if (output) output.textContent = error.message; }
+}
+
+
+
+
+async function loadSpanishLanguageAudit() {
+  const box = qs('#spanish-language-audit');
+  if (!box) return;
+  try {
+    const [auditJson, startJson, staffJson, copyJson] = await Promise.all([
+      api('/api/platform/spanish-language-audit'),
+      api('/api/platform/spanish-public-start-map'),
+      api('/api/platform/spanish-staff-guidance'),
+      api('/api/platform/spanish-marketing-copy-matrix')
+    ]);
+    const audit = auditJson.audit || {};
+    const start = startJson.start_map || {};
+    const staff = staffJson.guidance || {};
+    const matrix = copyJson.matrix || {};
+    const pageRows = (audit.page_parity_checks || []).map((p) => `<div class="check-row ok"><strong>${escapeHtml(p.page || '')}</strong><p><strong>Status:</strong> ${escapeHtml(p.status || '')}</p><p>${escapeHtml(p.change || '')}</p></div>`).join('');
+    const pathCards = (start.paths || []).map((p) => `<div class="card"><h3>${escapeHtml(p.spanish_label || '')}</h3><p>${escapeHtml(p.user_message || '')}</p><p><strong>Próximo paso seguro:</strong> ${escapeHtml(p.safe_next_step || '')}</p></div>`).join('');
+    const staffRows = (staff.lanes || []).map((l) => `<li><strong>${escapeHtml(l.lane || '')}</strong>: ${escapeHtml(l.action || '')}</li>`).join('');
+    const mustSay = (matrix.must_say || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const avoid = (matrix.avoid || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const terms = (matrix.preferred_terms || []).map((pair) => `<li><strong>${escapeHtml(pair[0] || '')}</strong> → ${escapeHtml(pair[1] || '')}</li>`).join('');
+    const blockers = (audit.unresolved_before_spanish_scale || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(audit.audit_name || 'Spanish-language audit')}</h2><p><strong>${escapeHtml(audit.summary?.headline || '')}</strong></p><p>${escapeHtml(audit.summary?.readiness || '')}</p><p class="notice-text">${escapeHtml(audit.policy?.principle || '')}</p></div><div class="card wide"><h2>Mapa público en español</h2><div class="grid three">${pathCards}</div></div><div class="card"><h2>Frases que deben aparecer</h2><ul>${mustSay}</ul></div><div class="card urgent-card"><h2>Frases que deben evitarse</h2><ul>${avoid}</ul></div><div class="card"><h2>Términos preferidos</h2><ul>${terms}</ul></div><div class="card"><h2>Guía para staff</h2><ul>${staffRows}</ul></div><div class="card wide"><h2>Páginas revisadas</h2>${pageRows}</div><div class="card wide urgent-card"><h2>Bloqueos antes de escalar en español</h2><ul>${blockers}</ul></div>`;
+  } catch (error) {
+    box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`;
+  }
+}
+
+async function loadExperiencePolishAudit() {
+  const box = qs('#experience-polish-audit');
+  if (!box) return;
+  try {
+    const [auditJson, roleJson, dashboardJson, staffJson, languageJson] = await Promise.all([
+      api('/api/platform/user-experience-refinement'),
+      api('/api/platform/role-based-start-map'),
+      api('/api/platform/dashboard-ux-guidance'),
+      api('/api/platform/staff-ux-guidance'),
+      api('/api/platform/public-language-safety-matrix')
+    ]);
+    const audit = auditJson.audit || {};
+    const roles = roleJson.start_map?.roles || [];
+    const dashboard = dashboardJson.guidance || {};
+    const staff = staffJson.guidance || {};
+    const language = languageJson.matrix || {};
+    const roleCards = roles.map((r) => `<a class="card link-card" href="${escapeAttr(r.preferred_start || '#')}"><h3>${escapeHtml(r.role || '')}</h3><p><strong>${escapeHtml(r.primary_goal || '')}</strong></p><p>${escapeHtml(r.copy_rule || '')}</p></a>`).join('');
+    const publicItems = (audit.public_user_refinements || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const dashItems = (audit.dashboard_refinements || dashboard.sections || []).map((x) => typeof x === 'string' ? `<li>${escapeHtml(x)}</li>` : `<li><strong>${escapeHtml(x.label || '')}</strong>: ${escapeHtml(x.rule || '')}</li>`).join('');
+    const staffItems = (audit.staff_refinements || staff.lanes || []).map((x) => typeof x === 'string' ? `<li>${escapeHtml(x)}</li>` : `<li><strong>${escapeHtml(x.label || '')}</strong>: ${escapeHtml(x.action || '')}</li>`).join('');
+    const mustSay = (language.must_say || audit.language_guardrails || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const mustNot = (language.must_not_say || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const blockers = (audit.unresolved_before_broad_launch || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(audit.policy?.name || 'UX refinement')}</h2><p><strong>${escapeHtml(audit.summary?.headline || '')}</strong></p><p>${escapeHtml(audit.summary?.readiness || '')}</p><p class="notice-text">${escapeHtml(audit.policy?.principle || '')}</p></div><div class="card wide"><h2>Role-based start map</h2><div class="grid three">${roleCards}</div></div><div class="card"><h2>Public-user polish</h2><ul>${publicItems}</ul></div><div class="card"><h2>Dashboard polish</h2><ul>${dashItems}</ul></div><div class="card"><h2>Staff polish</h2><ul>${staffItems}</ul></div><div class="card"><h2>Public copy must say</h2><ul>${mustSay}</ul></div><div class="card urgent-card"><h2>Public copy must not say</h2><ul>${mustNot}</ul></div><div class="card wide"><h2>Still blocked before broad launch</h2><ul>${blockers}</ul></div>`;
+  } catch (error) {
+    box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`;
+  }
+}
+
+async function loadControlledLaunchCloseout() {
+  const box = qs('#controlled-launch-closeout');
+  if (!box) return;
+  try {
+    const [closeoutJson, deployJson] = await Promise.all([
+      api('/api/platform/final-controlled-launch-closeout'),
+      api('/api/platform/deployment-preparation-checklist')
+    ]);
+    const closeout = closeoutJson.closeout || {};
+    const checklist = deployJson.checklist || {};
+    const gates = (closeout.gates || []).map((g) => `<div class="check-row ${g.ready ? 'ok' : 'block'}"><strong>${escapeHtml(g.label || '')}</strong><p><strong>Status:</strong> ${escapeHtml(g.status || '')}</p><p><strong>Allowed now:</strong> ${escapeHtml(g.allowed_now || '')}</p>${(g.missing || []).length ? `<p><strong>Missing:</strong> ${escapeHtml((g.missing || []).join(', '))}</p>` : ''}<p class="small">${escapeHtml((g.notes || []).join(' '))}</p></div>`).join('');
+    const go = Object.entries(closeout.go_no_go || {}).map(([key, value]) => `<li><strong>${escapeHtml(key.replace(/_/g, ' '))}</strong>: ${escapeHtml(value)}</li>`).join('');
+    const limits = (closeout.first_user_limits || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const after = (closeout.after_deployment_checks || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const local = (checklist.local_package_checks || []).map((x) => `<div class="check-row ok"><strong>${escapeHtml(x.label || '')}</strong><p>Owner: ${escapeHtml(x.owner || '')} · Required before deploy: ${x.required_before_deploy ? 'yes' : 'no'}</p></div>`).join('');
+    const external = (checklist.external_deployment_checks || []).map((x) => `<div class="check-row ${x.ready ? 'ok' : 'block'}"><strong>${escapeHtml(x.label || '')}</strong><p>${x.ready ? 'Marked configured by environment.' : 'External setup or live verification still required.'}</p></div>`).join('');
+    const smoke = (checklist.first_live_smoke_test_order || []).map((x) => `<li><code>${escapeHtml(x)}</code></li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(closeout.policy?.name || 'Controlled launch closeout')}</h2><p><strong>Recommended mode:</strong> ${escapeHtml(closeout.current_recommended_mode || '')}</p><p>${escapeHtml(closeout.readiness_statement || '')}</p><p class="notice-text">${escapeHtml(closeout.policy?.public_message || '')}</p></div><div class="card"><h2>Go / no-go</h2><ul class="list-clean">${go}</ul></div><div class="card"><h2>First-user limits</h2><ul class="list-clean">${limits}</ul></div><div class="card wide"><h2>Launch gates</h2>${gates}</div><div class="card"><h2>After deployment checks</h2><ol>${after}</ol></div><div class="card"><h2>Live smoke-test order</h2><ol>${smoke}</ol></div><div class="card wide"><h2>Local package checks</h2>${local}</div><div class="card wide"><h2>External deployment blockers</h2>${external}</div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function loadPublicNavigationAudit() {
+  const box = qs('#public-navigation-audit');
+  if (!box) return;
+  try {
+    const json = await api('/api/platform/public-navigation-audit');
+    const audit = json.audit || {};
+    const primary = (audit.customer_primary_path || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const support = (audit.customer_support_path || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const internal = (audit.internal_or_owner_pages_kept_but_deemphasized || []).map((x) => `<li><code>${escapeHtml(x)}</code></li>`).join('');
+    const changes = (audit.changes_in_0_1_51 || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(audit.title || 'Public navigation audit')}</h2><p>${escapeHtml(audit.conclusion || '')}</p></div><div class="card"><h2>Customer primary path</h2><ol>${primary}</ol></div><div class="card"><h2>Customer support path</h2><ol>${support}</ol></div><div class="card"><h2>Internal/owner pages kept but deemphasized</h2><ul>${internal}</ul></div><div class="card"><h2>v0.1.51 changes</h2><ul>${changes}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function loadComplianceSourceFreshness() {
+  const box = qs('#compliance-source-freshness');
+  if (!box) return;
+  try {
+    const json = await api('/api/platform/compliance-source-freshness');
+    const src = json.sources || {};
+    const rows = (src.verified_sources || []).map((r) => `<div class="card"><h3>${escapeHtml(r.source || '')}</h3><p>${escapeHtml(r.current_note || '')}</p><p><strong>Platform control:</strong> ${escapeHtml(r.platform_control || '')}</p><p class="small"><a href="${escapeAttr(r.url || '#')}" target="_blank" rel="noopener">Official source</a></p></div>`).join('');
+    const unresolved = (src.unresolved_before_broad_launch || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(src.title || 'Compliance source freshness')}</h2><p>${escapeHtml(src.source_priority_rule || '')}</p></div>${rows}<div class="card wide"><h2>Still unresolved before broad launch</h2><ul>${unresolved}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function loadFirstCohortStaffOps() {
+  const box = qs('#first-cohort-staff-ops');
+  if (!box) return;
+  try {
+    const json = await api('/api/platform/first-cohort-operating-guide');
+    const guide = json.guide || {};
+    const acceptable = (guide.acceptable_first_cases || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const defer = (guide.defer_or_escalate || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const daily = (guide.daily_staff_checklist || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const snapshot = guide.feedback_snapshot || {};
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(guide.title || 'First cohort staff guide')}</h2><p><strong>Cohort limit:</strong> ${escapeHtml(guide.cohort_limit || '')}</p><div class="stat-row"><div class="stat"><strong>${escapeHtml(String(snapshot.feedback_records || 0))}</strong>Feedback records</div><div class="stat"><strong>${escapeHtml(String(snapshot.sensitive_data_attempts || 0))}</strong>Sensitive attempts</div><div class="stat"><strong>${escapeHtml(String(snapshot.final_action_confusion || 0))}</strong>Final-action confusion</div><div class="stat"><strong>${escapeHtml(String(snapshot.payment_or_professional_confusion || 0))}</strong>Payment/pro confusion</div></div></div><div class="card"><h2>Acceptable first cases</h2><ul>${acceptable}</ul></div><div class="card urgent-card"><h2>Defer or escalate</h2><ul>${defer}</ul></div><div class="card wide"><h2>Daily staff checklist</h2><ol>${daily}</ol></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
+async function loadPrivacySafeAnalyticsAudit() {
+  const box = qs('#privacy-safe-analytics-audit');
+  if (!box) return;
+  try {
+    const json = await api('/api/platform/privacy-safe-analytics-audit');
+    const audit = json.audit || {};
+    const allowed = (audit.allowed || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const blocked = (audit.blocked || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="card wide"><h2>${escapeHtml(audit.title || 'Privacy-safe analytics')}</h2><p>${escapeHtml(audit.rule || '')}</p></div><div class="card"><h2>Allowed analytics</h2><ul>${allowed}</ul></div><div class="card urgent-card"><h2>Never log</h2><ul>${blocked}</ul></div>`;
+  } catch (error) { box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`; }
+}
+
 function escapeHtml(value) { return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#096;'); }
 
@@ -792,16 +1218,224 @@ window.showCustomerStatus = showCustomerStatus;
 window.sendCaseMessage = sendCaseMessage;
 window.logout = logout;
 window.loadFounderNextActions = loadFounderNextActions;
+
+async function loadForm433FWorkspace() {
+  const form = qs('#form-433f-organizer');
+  const readinessBox = qs('#form-433f-readiness');
+  const mapBox = qs('#form-433f-field-map');
+  if (!form && !readinessBox && !mapBox) return;
+  try {
+    const [readinessJson, mapJson, schemaJson] = await Promise.all([
+      api('/api/tax/forms/433-f/official-output-readiness'),
+      api('/api/tax/forms/433-f/field-map'),
+      api('/api/tax/forms/433-f/organizer-schema')
+    ]);
+    const readiness = readinessJson.readiness || {};
+    const summary = readiness.summary || {};
+    if (readinessBox) {
+      const checks = (readiness.checks || []).map((c) => `<li>${c.ok ? '✅' : '⬜'} ${escapeHtml(c.label || '')}<br><span class="small">${escapeHtml(c.detail || '')}</span></li>`).join('');
+      readinessBox.innerHTML = `<p><strong>Organizer:</strong> ${summary.organizer_ready ? 'ready' : 'not ready'} · <strong>Final IRS output:</strong> ${summary.client_output_ready ? 'allowed' : 'blocked'}</p><p class="notice-text">${escapeHtml(readiness.release_rule || '')}</p><ul class="checklist">${checks}</ul>`;
+    }
+    if (mapBox) {
+      const sections = (mapJson.field_map?.sections || []).map((section) => `<div class="mini-row"><strong>${escapeHtml(section.section)}</strong><br><span>${escapeHtml(String(section.field_count || 0))} mapped fields · ${escapeHtml(String(section.sensitive_count || 0))} sensitive/final-only fields</span></div>`).join('');
+      const sample = (mapJson.field_map?.fields || []).slice(0, 40).map((f) => `<li><strong>P${escapeHtml(String(f.page))} · ${escapeHtml(f.section)}</strong>: ${escapeHtml(f.official_label)} → <code>${escapeHtml(f.input_key)}</code></li>`).join('');
+      mapBox.innerHTML = `<p><strong>${escapeHtml(String(mapJson.field_map?.summary?.total_fields || 0))}</strong> logical official fields mapped. PDF field names/coordinates confirmed: <strong>${escapeHtml(String(mapJson.field_map?.summary?.pdf_field_names_confirmed || 0))}</strong>.</p><div class="grid two">${sections}</div><h3>First mapped fields</h3><ul class="list-clean">${sample}</ul>`;
+    }
+    if (form && !form.dataset.loaded) {
+      form.dataset.loaded = 'true';
+      const schema = schemaJson.schema || {};
+      const sections = (schema.sections || []).filter((section) => ['Name(s) and Address','Household','Self-employment','F. Employment Information','G. Non-wage Household Income','H. Monthly Necessary Living Expenses'].includes(section.label));
+      form.innerHTML = `<p class="notice-text">${escapeHtml(schema.warning || '')}</p>${sections.map(render433FSection).join('')}<label class="check"><input type="checkbox" name="levy_lien_or_summons_language"> I saw levy, lien, summons, wage garnishment, or urgent collection language.</label><label class="check"><input type="checkbox" name="payroll_or_trust_fund_issue"> This involves payroll taxes, sales tax, trust-fund taxes, or business withholding.</label><label class="check"><input type="checkbox" name="assets_transferred_recently"> Major assets were transferred, sold, or retitled recently.</label><button type="submit">Check 433-F organizer</button><p class="notice-text">This creates an organizer/checklist only. It does not submit or produce a final IRS Form 433-F.</p>`;
+      setupCounters(form);
+      form.addEventListener('submit', submit433FOrganizer);
+    }
+  } catch (error) {
+    if (readinessBox) readinessBox.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function render433FSection(section) {
+  const fields = (section.fields || []).slice(0, section.label === 'H. Monthly Necessary Living Expenses' ? 24 : 20).map((f) => {
+    const inputType = f.type === 'money' || f.type === 'number' || f.type === 'year' ? 'number' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : 'text'));
+    if (f.type === 'yes_no') return `<label>${escapeHtml(f.label)}${f.required ? ' *' : ''}<select name="${escapeHtml(f.key)}"><option value=""></option><option value="yes">Yes</option><option value="no">No</option></select></label>`;
+    if (f.type === 'checkbox') return `<label class="check"><input type="checkbox" name="${escapeHtml(f.key)}"> ${escapeHtml(f.label)}</label>`;
+    if (String(f.label || '').length > 90 || f.type === 'long_text') return `<label>${escapeHtml(f.label)}${f.required ? ' *' : ''}<textarea name="${escapeHtml(f.key)}" rows="2" data-maxlength="900"></textarea></label>`;
+    return `<label>${escapeHtml(f.label)}${f.required ? ' *' : ''}<input name="${escapeHtml(f.key)}" type="${inputType}" ${inputType === 'number' ? 'step="any"' : ''}></label>`;
+  }).join('');
+  return `<fieldset class="card"><legend><strong>${escapeHtml(section.label)}</strong></legend><div class="grid two">${fields}</div></fieldset>`;
+}
+
+async function submit433FOrganizer(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#form-433f-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Checking 433-F organizer...'; }
+  try {
+    const raw = Object.fromEntries(new FormData(form).entries());
+    qsa('input[type="checkbox"]', form).forEach((input) => { raw[input.name] = input.checked ? 'yes' : (raw[input.name] || 'no'); });
+    const json = await api('/api/tax/forms/433-f/completion-plan', { method: 'POST', body: JSON.stringify({ answers: raw }) });
+    const plan = json.plan || {};
+    const derived = plan.derived_calculations || {};
+    const missing = (plan.validation?.missing || []).slice(0, 12).map((m) => `<li>${escapeHtml(m.section || '')}: ${escapeHtml(m.label || m.key)}</li>`).join('') || '<li>No required organizer fields missing.</li>';
+    const warnings = (plan.validation?.warnings || []).slice(0, 12).map((w) => `<li>${escapeHtml(w.warning || '')}</li>`).join('') || '<li>No warnings from this pass.</li>';
+    const blockers = (plan.output_gate?.blocked_reasons || []).slice(0, 12).map((b) => `<li>${escapeHtml(b)}</li>`).join('') || '<li>No blockers shown.</li>';
+    if (output) output.innerHTML = `<h3>433-F organizer check</h3><p><strong>Organizer complete:</strong> ${plan.organizer_status?.client_can_complete_organizer_now ? 'yes' : 'no'} · <strong>Final IRS output:</strong> ${plan.output_gate?.official_client_output_allowed ? 'allowed' : 'blocked'}</p><div class="stat-row"><div class="stat"><strong>$${escapeHtml(String(derived.total_monthly_income_estimate || 0))}</strong>Monthly income estimate</div><div class="stat"><strong>$${escapeHtml(String(derived.total_monthly_expense_estimate || 0))}</strong>Monthly expenses estimate</div><div class="stat"><strong>$${escapeHtml(String(derived.rough_monthly_net_after_expenses || 0))}</strong>Rough monthly net</div><div class="stat"><strong>${escapeHtml(String(plan.organizer_status?.answered_mapped_fields || 0))}</strong>Mapped fields answered</div></div><div class="grid two"><div><h4>Missing organizer items</h4><ul>${missing}</ul></div><div><h4>Warnings/follow-ups</h4><ul>${warnings}</ul></div></div><h4>Why final IRS output is still blocked</h4><ul>${blockers}</ul><p class="notice-text">Staff/professional review is still required before any official 433-F release. Do not sign or send a financial disclosure based only on this organizer.</p>`;
+  } catch (error) {
+    if (output) output.textContent = error.message;
+  }
+}
+
 window.loadPilotReadiness = loadPilotReadiness;
 window.loadSecurityPlan = loadSecurityPlan;
 window.loadProductionConfig = loadProductionConfig;
 window.seedDemoData = seedDemoData;
 window.loadStaffCockpit = loadStaffCockpit;
 window.loadPrivatePilotRelease = loadPrivatePilotRelease;
+window.loadTaxpayerActionCenter = loadTaxpayerActionCenter;
+window.submitReviewSelfCheck = submitReviewSelfCheck;
+window.loadTaxUrgencyTriageGuide = loadTaxUrgencyTriageGuide;
+window.submitTaxUrgencyTriage = submitTaxUrgencyTriage;
+window.loadPublicLaunchRoadmap = loadPublicLaunchRoadmap;
+window.loadRealUserLaunchCenter = loadRealUserLaunchCenter;
+window.submitRealUserSafetyCheck = submitRealUserSafetyCheck;
+window.loadFirstPublicUserStart = loadFirstPublicUserStart;
+window.loadRealUserGoLiveGate = loadRealUserGoLiveGate;
+window.submitPreSubmitRealUserCheck = submitPreSubmitRealUserCheck;
+window.loadSafeTaxSummaryBuilderGuide = loadSafeTaxSummaryBuilderGuide;
+window.submitSafeTaxSummary = submitSafeTaxSummary;
+window.loadAfterYouStartGuide = loadAfterYouStartGuide;
+window.loadFirstUserFeedbackGuide = loadFirstUserFeedbackGuide;
+window.submitFirstUserFeedback = submitFirstUserFeedback;
+window.submitPostSubmitExpectationCheck = submitPostSubmitExpectationCheck;
+window.loadControlledLaunchCloseout = loadControlledLaunchCloseout;
+window.loadPublicNavigationAudit = loadPublicNavigationAudit;
+window.loadComplianceSourceFreshness = loadComplianceSourceFreshness;
+window.loadFirstCohortStaffOps = loadFirstCohortStaffOps;
+window.loadPrivacySafeAnalyticsAudit = loadPrivacySafeAnalyticsAudit;
+window.loadForm433FWorkspace = loadForm433FWorkspace;
+window.loadExperiencePolishAudit = loadExperiencePolishAudit;
+window.loadSpanishLanguageAudit = loadSpanishLanguageAudit;
+
+
+function collectFormDraft(form) {
+  const data = {};
+  for (const [key, value] of new FormData(form).entries()) {
+    if (value && typeof value === 'object' && 'name' in value) continue;
+    if (!data[key]) data[key] = value;
+    else if (Array.isArray(data[key])) data[key].push(value);
+    else data[key] = [data[key], value];
+  }
+  return data;
+}
+
+function localDraftKey(form) {
+  return `jts_draft_${form.id || form.dataset.saveDraft || window.location.pathname}`;
+}
+
+function saveLocalDraft(form) {
+  if (!form) return;
+  const payload = { data: collectFormDraft(form), saved_at: new Date().toISOString(), page_path: window.location.pathname };
+  localStorage.setItem(localDraftKey(form), JSON.stringify(payload));
+  const status = qs(`[data-draft-status="${form.id}"]`) || qs('[data-draft-status]');
+  if (status) status.textContent = `Saved locally ${new Date(payload.saved_at).toLocaleString()}. Sign in to save server-side.`;
+}
+
+function restoreLocalDraft(form) {
+  if (!form) return;
+  try {
+    const raw = localStorage.getItem(localDraftKey(form));
+    if (!raw) return;
+    const payload = JSON.parse(raw);
+    const data = payload.data || {};
+    for (const [key, value] of Object.entries(data)) {
+      const fields = qsa(`[name="${CSS.escape(key)}"]`, form);
+      fields.forEach((field) => {
+        if (field.type === 'file') return;
+        if (field.type === 'checkbox') field.checked = Array.isArray(value) ? value.includes(field.value) || value.includes('on') : Boolean(value === field.value || value === 'on' || value === true);
+        else if (field.type === 'radio') field.checked = field.value === value;
+        else field.value = Array.isArray(value) ? value[0] : value;
+      });
+    }
+    const status = qs(`[data-draft-status="${form.id}"]`) || qs('[data-draft-status]');
+    if (status) status.textContent = `Restored a local draft from ${new Date(payload.saved_at || Date.now()).toLocaleString()}.`;
+  } catch {}
+}
+
+async function saveServerDraftForForm(form) {
+  const status = qs(`[data-draft-status="${form.id}"]`) || qs('[data-draft-status]');
+  const payload = {
+    title: form.dataset.draftTitle || 'Saved Justice Tax Solutions work',
+    workflow: form.dataset.workflow || form.querySelector('[name="pathway"]')?.value || 'general-tax-work',
+    page_path: window.location.pathname,
+    status: 'draft_saved',
+    data: collectFormDraft(form),
+    progress_percent: 25,
+    last_completed_section: 'User saved draft from browser form'
+  };
+  try {
+    const json = await api('/api/work-progress/drafts', { method: 'POST', body: JSON.stringify(payload) });
+    if (status) status.textContent = `${json.message} Last saved ${new Date(json.draft.last_saved_at).toLocaleString()}.`;
+    localStorage.removeItem(localDraftKey(form));
+  } catch (error) {
+    saveLocalDraft(form);
+    if (status) status.textContent = `Saved locally because server draft save needs sign-in or is unavailable: ${error.message}`;
+  }
+}
+
+function initSaveResume() {
+  qsa('form[data-save-resume], #intake').forEach((form) => {
+    form.dataset.saveResume = 'true';
+    if (!form.dataset.draftTitle) form.dataset.draftTitle = form.id === 'intake' ? 'Tax starting summary draft' : document.title || 'Saved tax work draft';
+    restoreLocalDraft(form);
+    let status = qs(`[data-draft-status="${form.id}"]`);
+    if (!status) {
+      status = document.createElement('p');
+      status.className = 'notice-text';
+      status.dataset.draftStatus = form.id || 'form';
+      status.textContent = 'You can save progress and come back later. Do not enter full SSNs, bank data, or unredacted tax documents while live sensitive-data gates remain blocked.';
+      form.insertAdjacentElement('afterbegin', status);
+    }
+    form.addEventListener('input', () => {
+      clearTimeout(form._jtsDraftTimer);
+      form._jtsDraftTimer = setTimeout(() => saveLocalDraft(form), 900);
+    });
+    if (!qs(`[data-save-draft-button="${form.id}"]`)) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'secondary';
+      button.dataset.saveDraftButton = form.id || 'form';
+      button.textContent = 'Save progress';
+      button.addEventListener('click', () => saveServerDraftForForm(form));
+      const actions = form.querySelector('.actions') || form;
+      actions.insertAdjacentElement('afterbegin', button);
+    }
+  });
+}
+
+async function loadDataContinuityWorkbench() {
+  const box = qs('#data-continuity-workbench');
+  if (!box) return;
+  try {
+    const json = await api('/api/platform/data-continuity-safeguards');
+    const audit = json.audit || {};
+    const policy = audit.policy || {};
+    const readiness = audit.persistence_readiness || {};
+    const checklist = audit.deployment_checklist || {};
+    const nonNegotiables = (policy.non_negotiables || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const recordTypes = (policy.preserved_record_types || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const preDeploy = (checklist.pre_deploy || []).map((x) => `<li><strong>${escapeHtml(x.label || '')}</strong></li>`).join('');
+    const postDeploy = (checklist.post_deploy || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const warnings = (readiness.warnings || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('') || '<li>No warnings reported.</li>';
+    box.innerHTML = `<div class="stat-row"><div class="stat"><strong>${readiness.managed_database_configured ? 'Yes' : 'No'}</strong>Managed DB</div><div class="stat"><strong>${readiness.secure_object_storage_configured ? 'Yes' : 'No'}</strong>Private storage</div><div class="stat"><strong>${readiness.runtime_counts?.work_progress_drafts || 0}</strong>Saved drafts</div><div class="stat"><strong>${readiness.runtime_counts?.payments || 0}</strong>Payments</div></div><div class="grid two"><div class="card"><h2>Must preserve</h2><ul>${recordTypes}</ul></div><div class="card"><h2>Warnings</h2><ul>${warnings}</ul></div></div><div class="card wide"><h2>Deployment non-negotiables</h2><ul>${nonNegotiables}</ul></div><div class="grid two"><div class="card"><h2>Before deploy</h2><ul>${preDeploy}</ul></div><div class="card"><h2>After deploy</h2><ul>${postDeploy}</ul></div></div>`;
+  } catch (error) {
+    box.innerHTML = `<p>${escapeHtml(error.message)}</p>`;
+  }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   setReferralFromUrl();
   setupCounters();
+  initSaveResume();
   recordAnalyticsEvent('landing_page_view', { title: document.title || '' });
   await loadMe();
   qsa('[data-path]').forEach((el) => el.addEventListener('click', () => setPath(el.dataset.path)));
@@ -818,10 +1452,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadCalendarIntegrationGuide();
   loadDocumentVerification();
   const officialUpload = qs('#official-form-upload'); if (officialUpload) officialUpload.addEventListener('submit', uploadOfficialForms);
+  const officialPdfUpload = qs('#official-pdf-upload'); if (officialPdfUpload) officialPdfUpload.addEventListener('submit', uploadOfficialPdfs);
   const sourceSeed = qs('#official-source-seed'); if (sourceSeed) sourceSeed.addEventListener('submit', seedOfficialSourceCatalog);
   const sourceRegister = qs('#official-source-register'); if (sourceRegister) sourceRegister.addEventListener('submit', registerOfficialSourceUrl);
   const sourceCapture = qs('#official-source-capture'); if (sourceCapture) sourceCapture.addEventListener('submit', captureOfficialSourcePdf);
   const privatePilotDecision = qs('#private-pilot-decision'); if (privatePilotDecision) privatePilotDecision.addEventListener('submit', recordPrivatePilotDecision);
+  const publicLaunchDecision = qs('#public-launch-decision'); if (publicLaunchDecision) publicLaunchDecision.addEventListener('submit', recordPublicLaunchDecision);
+  const reviewSelfCheck = qs('#review-self-check-form'); if (reviewSelfCheck) reviewSelfCheck.addEventListener('submit', submitReviewSelfCheck);
+  const urgencyTriage = qs('#tax-urgency-triage-form'); if (urgencyTriage) urgencyTriage.addEventListener('submit', submitTaxUrgencyTriage);
+  const realUserSafetyCheck = qs('#real-user-safety-check-form'); if (realUserSafetyCheck) realUserSafetyCheck.addEventListener('submit', submitRealUserSafetyCheck);
+  const preSubmitRealUserCheck = qs('#pre-submit-real-user-check-form'); if (preSubmitRealUserCheck) preSubmitRealUserCheck.addEventListener('submit', submitPreSubmitRealUserCheck);
+  const safeTaxSummary = qs('#safe-tax-summary-form'); if (safeTaxSummary) safeTaxSummary.addEventListener('submit', submitSafeTaxSummary);
+  const postSubmitExpectation = qs('#post-submit-expectation-form'); if (postSubmitExpectation) postSubmitExpectation.addEventListener('submit', submitPostSubmitExpectationCheck);
+  const firstUserFeedback = qs('#first-user-feedback-form'); if (firstUserFeedback) firstUserFeedback.addEventListener('submit', submitFirstUserFeedback);
   loadOfficialFormsDashboard();
   loadFormsUploadChecklist();
   loadStaffTasks();
@@ -835,6 +1478,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadProductionConfig();
   loadMarketingConversion();
   loadPrivatePilotRelease();
+  loadPublicLaunchAudit();
+  loadTaxpayerActionCenter();
+  loadDocumentSafetyCenter();
+  loadPublicLaunchCloseoutPlan();
+  loadTaxUrgencyTriageGuide();
+  loadPublicLaunchRoadmap();
+  loadRealUserLaunchCenter();
+  loadFirstPublicUserStart();
+  loadRealUserGoLiveGate();
+  loadSafeTaxSummaryBuilderGuide();
+  loadAfterYouStartGuide();
+  loadFirstUserFeedbackGuide();
+  loadControlledLaunchCloseout();
+  loadPublicNavigationAudit();
+  loadComplianceSourceFreshness();
+  loadFirstCohortStaffOps();
+  loadPrivacySafeAnalyticsAudit();
+  loadForm433FWorkspace();
+  loadExperiencePolishAudit();
+  loadSpanishLanguageAudit();
+  loadDataContinuityWorkbench();
 });
 
 
@@ -964,6 +1628,27 @@ async function captureOfficialSourcePdf(event) {
   }
 }
 
+
+async function uploadOfficialPdfs(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#official-pdf-upload-output');
+  if (output) { output.classList.add('show'); output.textContent = 'Uploading official PDFs to the mapping queue...'; }
+  try {
+    const data = new FormData(form);
+    const token = data.get('admin_token') || localStorage.getItem('jts_admin_token') || '';
+    if (token) localStorage.setItem('jts_admin_token', token);
+    const response = await fetch('/api/admin/official-form-pdfs', { method: 'POST', body: data, headers: token ? { 'x-admin-token': token } : {}, credentials: 'include' });
+    const json = await response.json();
+    if (!json.ok) throw new Error(json.error || 'Official PDF upload failed.');
+    const result = json.result || {};
+    if (output) output.innerHTML = `<h3>Official PDFs processed</h3><p>PDF records: ${escapeHtml(String((result.forms || []).length))} · Mapping queue count: ${escapeHtml(String(json.mapping_queue_count || 0))}</p><p class="notice-text">Captured official PDFs are still not client-output-ready until field/coordinate mapping, sample-filled PDF QA, visual review, client verification, professional/staff release, and production security gates pass.</p><pre class="api">${escapeHtml(JSON.stringify({ package: result.package, forms: result.forms, skipped: result.skipped }, null, 2))}</pre>`;
+    await loadOfficialFormsDashboard();
+  } catch (error) {
+    if (output) output.textContent = error.message;
+  }
+}
+
 async function uploadOfficialForms(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1005,6 +1690,9 @@ async function loadOfficialFormsDashboard() {
     const form9465Ready = await api('/api/tax/forms/9465/official-output-readiness');
     const form9465Map = await api('/api/tax/forms/9465/field-map');
     const form9465Samples = await api('/api/tax/forms/9465/sample-cases');
+    const form433FReady = await api('/api/tax/forms/433-f/official-output-readiness');
+    const form433FMap = await api('/api/tax/forms/433-f/field-map');
+    const form433FSamples = await api('/api/tax/forms/433-f/sample-cases');
     const form9465Capture = await api('/api/tax/forms/9465/pdf-capture-readiness');
     const form9465Visual = await api('/api/tax/forms/9465/visual-field-qa-plan');
     const form9465FillReady = await api('/api/tax/forms/9465/fill-engine-readiness');
@@ -1040,6 +1728,10 @@ async function loadOfficialFormsDashboard() {
     const invSummary = inventory.inventory?.summary || {};
     const qa = (matrix.matrix?.qa_checklist || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
     const f9465Summary = form9465Ready.readiness?.summary || {};
+    const f433FSummary = form433FReady.readiness?.summary || {};
+    const f433FChecks = (form433FReady.readiness?.checks || []).map(c => `<li>${c.ok ? '✅' : '⬜'} ${escapeHtml(c.label)} — ${escapeHtml(c.detail || '')}</li>`).join('');
+    const f433FSections = (form433FMap.field_map?.sections || []).map(sec => `<li><strong>${escapeHtml(sec.section)}</strong> — ${escapeHtml(String(sec.field_count || 0))} mapped fields</li>`).join('');
+    const f433FSamples = (form433FSamples.samples?.sample_cases || []).map(sample => `<li>${escapeHtml(sample.label)} — organizer complete: ${sample.completion_plan?.organizer_status?.client_can_complete_organizer_now ? 'yes' : 'no'}; final output: ${sample.completion_plan?.output_gate?.official_client_output_allowed ? 'allowed' : 'blocked'}</li>`).join('');
     const f9465CaptureSummary = form9465Capture.readiness?.summary || {};
     const f9465VisualZones = (form9465Visual.visual_qa_plan?.page_zones || []).map(z => `<li>Page ${escapeHtml(String(z.page))}: ${escapeHtml(z.label)} — ${escapeHtml((z.fields || []).slice(0, 4).join(', '))}</li>`).join('');
     const f9465Checks = (form9465Ready.readiness?.checks || []).map(c => `<li>${c.ok ? '✅' : '⬜'} ${escapeHtml(c.label)} — ${escapeHtml(c.detail || '')}</li>`).join('');
@@ -1069,7 +1761,7 @@ async function loadOfficialFormsDashboard() {
     const f9465StaffApprovalReport = form9465StaffApprovalGate.report || {};
     const f9465CaptureCompletionChecks = (f9465CaptureCompletionReadiness.checks || []).slice(0, 12).map(c => `<li>${c.ok ? '✅' : '⬜'} ${escapeHtml(c.label)}${c.detail ? ` — ${escapeHtml(c.detail)}` : ''}</li>`).join('');
     const f9465StaffApprovalChecks = (f9465StaffApprovalReport.approval_checks || []).slice(0, 8).map(c => `<li>${c.ok ? '✅' : c.optional ? '•' : '⬜'} ${escapeHtml(c.label)}</li>`).join('');
-    box.innerHTML = `<div class="card"><h2>Can we get official forms ourselves?</h2><p>${escapeHtml(discoveryGuide.guide.answer_to_owner || downloadGuide.guide.short_answer || '')}</p><p class="notice-text">${escapeHtml(downloadGuide.guide.current_build_behavior || '')}</p></div><div class="card"><h2>Official URL capture</h2><p>Capture mode: ${captureGuide.guide.enabled ? 'enabled' : 'disabled by default'}</p><p class="notice-text">${escapeHtml(captureGuide.guide.why_disabled_by_default || '')}</p><p class="small">Enable with ${escapeHtml(captureGuide.guide.env_to_enable || '')}</p></div><div class="card"><h2>Official source inventory</h2><p>Seeded source records: ${escapeHtml(String(invSummary.source_records || 0))} · Uploaded PDF records: ${escapeHtml(String(invSummary.pdf_records_ingested || 0))} · Client-output ready: ${escapeHtml(String(invSummary.client_output_ready || 0))}</p><p>Government source catalog available now: ${escapeHtml(String(sourceCatalog.summary?.catalog_total || 0))} records.</p></div><div class="card wide"><h2>IRS Form 9465 output path</h2><p>First controlled official-output workflow: ${escapeHtml(String(f9465Summary.passed || 0))}/${escapeHtml(String(f9465Summary.required_checks || 0))} checks passed · Client-output ready: ${f9465Summary.client_output_ready ? 'yes' : 'no'}</p><ul>${f9465Checks}</ul><p class="notice-text">9465 field candidates are line-level and still require official PDF capture, field/overlay confirmation, sample-fill QA, client verification, and professional release before final print/signature output.</p></div><div class="card wide"><h2>9465 official PDF capture + visual QA</h2><p>Capture/readiness: ${escapeHtml(String(f9465CaptureSummary.passed || 0))}/${escapeHtml(String(f9465CaptureSummary.required_checks || 0))} checks passed · Final output ready: ${f9465CaptureSummary.final_client_output_ready ? 'yes' : 'no'}</p><p class="notice-text">v0.1.31 adds official IRS 9465 PDF capture readiness, visual field QA zones, overlay-coordinate drafts, and a staff visual QA board. Final client output remains blocked.</p><ul>${f9465VisualZones}</ul></div><div class="card wide"><h2>9465 fill engine + sample overlay prep</h2><p>Fill-engine readiness: ${escapeHtml(String(f9465FillSummary.passed || 0))}/${escapeHtml(String(f9465FillSummary.required_gates || 0))} release gates passed · Final output ready: ${f9465FillSummary.client_final_output_ready ? 'yes' : 'no'}</p><p>Overlay template: ${escapeHtml(String(f9465OverlaySummary.field_count || 0))} fields · ${escapeHtml(String(f9465OverlaySummary.overlay_candidate_count || 0))} overlay candidates · ${escapeHtml(String(f9465OverlaySummary.unmapped_count || 0))} unmapped fields.</p><p class="notice-text">v0.1.32 adds actual PDF fill/overlay engine prep, fill-plan output values, sample filled overlay QA PDFs, and a staff fill-engine board. Final client IRS output remains blocked.</p><ul>${f9465FillGates}</ul></div><div class="card wide"><h2>9465 official PDF upload fallback + coordinate lock</h2><p>Fallback readiness: ${escapeHtml(String(f9465FallbackPlan.passed || 0))}/${escapeHtml(String(f9465FallbackPlan.required_checks || 0))} checks passed · Coordinate lock: ${f9465LockSummary.all_pages_locked ? 'all pages locked' : 'not fully locked'} · Final output: ${f9465FinalGateReport.client_final_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.33 adds official IRS PDF upload fallback, checksum validation, coordinate-lock checklist/board, and final-output gate reporting. Upload fallback is staff/admin only and does not make the form client-output-ready.</p><ul>${f9465FallbackChecks}</ul></div><div class="card wide"><h2>9465 official sample output + visual comparison</h2><p>Readiness: ${escapeHtml(String(f9465OfficialSampleReadiness.passed || 0))}/${escapeHtml(String(f9465OfficialSampleReadiness.required_checks || 0))} checks passed · Final output: ${f9465OfficialSampleReadiness.client_final_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.34 adds official-sample output preview, a visual overlay comparison plan, internal comparison packet generation, and staff QA status tracking. It still does not enable final client IRS output.</p><ul>${f9465OfficialSampleChecks}</ul><h3>Comparison zones</h3><ul>${f9465ComparisonZones}</ul></div><div class="card wide"><h2>9465 client verification + professional release</h2><p>Print/signature draft allowed: ${f9465PrintReadiness.print_signature_draft_allowed ? 'yes' : 'no'} · Final IRS output: ${f9465PrintReadiness.final_client_irs_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.35 adds the client verification checklist, professional release gate, release board, and controlled print/signature draft packet workflow. Final IRS output remains blocked until official PDF, coordinate lock, professional signoff, client verification, and production gates pass.</p><p class="small">${escapeHtml(form9465ClientRelease.policy?.print_signature_rule || '')}</p><ul>${f9465PrintBlockers}</ul></div><div class="card wide"><h2>9465 final output gate audit + client-ready draft path</h2><p>Final gate audit: ${escapeHtml(String(f9465FinalAudit.passed || 0))}/${escapeHtml(String(f9465FinalAudit.required_gates || 0))} gates passed · Supervised draft: ${f9465FinalAudit.supervised_client_draft_allowed ? 'allowed' : 'blocked'} · Final IRS output: ${f9465FinalAudit.final_client_irs_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.36 adds the final output gate audit, first client-ready draft path once PDF gates pass, final release board, and audit packet workflow. It remains blocked until official PDF, checksum, coordinate lock, visual QA, client verification, professional release, payment/quote, and production security all pass.</p><p class="small">${escapeHtml(form9465FinalReleasePolicy.policy?.customer_language || '')}</p><ul>${f9465FinalAuditGates}</ul><p class="small"><strong>Next step:</strong> ${escapeHtml(f9465ClientReadyPath.client_next_step || '')}</p></div><div class="card wide"><h2>9465 operational capture test + true coordinate QA</h2><p>Operational capture test: ${escapeHtml(String(f9465OperationalCaptureTest.passed || 0))}/${escapeHtml(String(f9465OperationalCaptureTest.required_checks || 0))} checks passed · True-coordinate QA: ${escapeHtml(String(f9465TrueCoordinateWorkflow.passed || 0))}/${escapeHtml(String(f9465TrueCoordinateWorkflow.required_checks || 0))} checks passed · Final output: ${f9465OperationalReadiness.client_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.37 adds an operational capture/upload test, measured-coordinate QA workflow, tolerance checks, staff QA board, and final-release readiness from operational QA. Client IRS output remains blocked until all gates pass.</p><ul>${f9465OperationalChecks}</ul></div><div class="card wide"><h2>9465 capture completion + coordinate simulation approvals</h2><p>Capture completion: ${escapeHtml(String(f9465CaptureCompletionReadiness.passed || 0))}/${escapeHtml(String(f9465CaptureCompletionReadiness.required_checks || 0))} checks passed · Actual gate passed: ${f9465CaptureCompletionReadiness.actual_gate_passed ? 'yes' : 'no'} · Simulation approved: ${f9465SimulationSummary.staff_simulation_approved ? 'yes' : 'no'} · Client IRS output: ${f9465StaffApprovalReport.client_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.38 adds capture/upload completion readiness, coordinate-lock simulation, staff approval gates, and internal completion packets. Simulation approval cannot authorize final client output.</p><ul>${f9465CaptureCompletionChecks}</ul><h3>Staff approval gates</h3><ul>${f9465StaffApprovalChecks}</ul></div><div class="card wide"><h2>9465 field candidates</h2><ul>${f9465FieldRows}</ul><h3>9465 sample QA cases</h3><ul>${f9465Samples}</ul></div><div class="card wide"><h2>AI-first form completion</h2><p>${escapeHtml(aiPolicy.policy?.goal || '')}</p><p class="notice-text">${escapeHtml(aiPolicy.policy?.human_minimization_rule || '')}</p><ol>${pipelineRows}</ol></div><div class="card wide"><h2>First-wave AI interview templates</h2><div class="grid two">${automationForms}</div></div><div class="card"><h2>Ready for official form ZIPs</h2><p>${guide.guide.ready_for_uploads ? 'Yes — the platform can accept official IRS/NYS/NYC form ZIPs and build a mapping queue.' : 'Not ready yet.'}</p><p><strong>Preferred:</strong> one agency per ZIP, keep official filenames, include instructions, and provide source page URL.</p><ul class="list-clean">${(guide.guide.what_to_upload_now || []).map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div><div class="card"><h2>Readiness matrix</h2><p>Total uploaded forms: ${escapeHtml(String(matrixSummary.total || 0))} · Client-output ready: ${escapeHtml(String(matrixSummary.client_output_ready || 0))}</p><p class="small">Statuses: ${escapeHtml(JSON.stringify(matrixSummary.by_status || {}))}</p><p class="notice-text">${escapeHtml(matrix.matrix?.policy || '')}</p></div><div class="card wide"><h2>Controlled mapping stages</h2><ol>${stages}</ol></div><div class="card wide"><h2>Seeded source records</h2>${sourceRows}</div><div class="card wide"><h2>First official government source catalog</h2><ul>${catalogRows}</ul></div><div class="grid two">${waves}</div><div class="card wide"><h2>Form QA checklist before client output</h2><ul>${qa}</ul></div><div class="card wide"><h2>Current PDF mapping queue</h2>${rows}</div>`;
+    box.innerHTML = `<div class="card"><h2>Can we get official forms ourselves?</h2><p>${escapeHtml(discoveryGuide.guide.answer_to_owner || downloadGuide.guide.short_answer || '')}</p><p class="notice-text">${escapeHtml(downloadGuide.guide.current_build_behavior || '')}</p></div><div class="card"><h2>Official URL capture</h2><p>Capture mode: ${captureGuide.guide.enabled ? 'enabled' : 'disabled by default'}</p><p class="notice-text">${escapeHtml(captureGuide.guide.why_disabled_by_default || '')}</p><p class="small">Enable with ${escapeHtml(captureGuide.guide.env_to_enable || '')}</p></div><div class="card"><h2>Official source inventory</h2><p>Seeded source records: ${escapeHtml(String(invSummary.source_records || 0))} · Uploaded PDF records: ${escapeHtml(String(invSummary.pdf_records_ingested || 0))} · Client-output ready: ${escapeHtml(String(invSummary.client_output_ready || 0))}</p><p>Government source catalog available now: ${escapeHtml(String(sourceCatalog.summary?.catalog_total || 0))} records.</p></div><div class="card wide"><h2>IRS Form 433-F controlled organizer + field map</h2><p>Organizer readiness: ${f433FSummary.organizer_ready ? 'ready' : 'not ready'} · Logical fields mapped: ${escapeHtml(String(form433FMap.field_map?.summary?.total_fields || 0))} · Final IRS output: ${f433FSummary.client_output_ready ? 'allowed' : 'blocked'}</p><p><a class="button secondary" href="/irs-form-433-f-workspace.html">Open 433-F organizer workspace</a></p><p class="notice-text">v0.1.56 adds the first deeper IRS 433-F website organizer and official section/line map. It is an organizer and QA path only; final client IRS output remains blocked until official PDF capture, field/coordinate lock, sample visual QA, client verification, professional release, and sensitive-data gates pass.</p><ul>${f433FChecks}</ul><h3>433-F mapped sections</h3><ul>${f433FSections}</ul><h3>433-F sample organizer cases</h3><ul>${f433FSamples}</ul></div><div class="card wide"><h2>IRS Form 9465 output path</h2><p>First controlled official-output workflow: ${escapeHtml(String(f9465Summary.passed || 0))}/${escapeHtml(String(f9465Summary.required_checks || 0))} checks passed · Client-output ready: ${f9465Summary.client_output_ready ? 'yes' : 'no'}</p><ul>${f9465Checks}</ul><p class="notice-text">9465 field candidates are line-level and still require official PDF capture, field/overlay confirmation, sample-fill QA, client verification, and professional release before final print/signature output.</p></div><div class="card wide"><h2>9465 official PDF capture + visual QA</h2><p>Capture/readiness: ${escapeHtml(String(f9465CaptureSummary.passed || 0))}/${escapeHtml(String(f9465CaptureSummary.required_checks || 0))} checks passed · Final output ready: ${f9465CaptureSummary.final_client_output_ready ? 'yes' : 'no'}</p><p class="notice-text">v0.1.31 adds official IRS 9465 PDF capture readiness, visual field QA zones, overlay-coordinate drafts, and a staff visual QA board. Final client output remains blocked.</p><ul>${f9465VisualZones}</ul></div><div class="card wide"><h2>9465 fill engine + sample overlay prep</h2><p>Fill-engine readiness: ${escapeHtml(String(f9465FillSummary.passed || 0))}/${escapeHtml(String(f9465FillSummary.required_gates || 0))} release gates passed · Final output ready: ${f9465FillSummary.client_final_output_ready ? 'yes' : 'no'}</p><p>Overlay template: ${escapeHtml(String(f9465OverlaySummary.field_count || 0))} fields · ${escapeHtml(String(f9465OverlaySummary.overlay_candidate_count || 0))} overlay candidates · ${escapeHtml(String(f9465OverlaySummary.unmapped_count || 0))} unmapped fields.</p><p class="notice-text">v0.1.32 adds actual PDF fill/overlay engine prep, fill-plan output values, sample filled overlay QA PDFs, and a staff fill-engine board. Final client IRS output remains blocked.</p><ul>${f9465FillGates}</ul></div><div class="card wide"><h2>9465 official PDF upload fallback + coordinate lock</h2><p>Fallback readiness: ${escapeHtml(String(f9465FallbackPlan.passed || 0))}/${escapeHtml(String(f9465FallbackPlan.required_checks || 0))} checks passed · Coordinate lock: ${f9465LockSummary.all_pages_locked ? 'all pages locked' : 'not fully locked'} · Final output: ${f9465FinalGateReport.client_final_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.33 adds official IRS PDF upload fallback, checksum validation, coordinate-lock checklist/board, and final-output gate reporting. Upload fallback is staff/admin only and does not make the form client-output-ready.</p><ul>${f9465FallbackChecks}</ul></div><div class="card wide"><h2>9465 official sample output + visual comparison</h2><p>Readiness: ${escapeHtml(String(f9465OfficialSampleReadiness.passed || 0))}/${escapeHtml(String(f9465OfficialSampleReadiness.required_checks || 0))} checks passed · Final output: ${f9465OfficialSampleReadiness.client_final_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.34 adds official-sample output preview, a visual overlay comparison plan, internal comparison packet generation, and staff QA status tracking. It still does not enable final client IRS output.</p><ul>${f9465OfficialSampleChecks}</ul><h3>Comparison zones</h3><ul>${f9465ComparisonZones}</ul></div><div class="card wide"><h2>9465 client verification + professional release</h2><p>Print/signature draft allowed: ${f9465PrintReadiness.print_signature_draft_allowed ? 'yes' : 'no'} · Final IRS output: ${f9465PrintReadiness.final_client_irs_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.35 adds the client verification checklist, professional release gate, release board, and controlled print/signature draft packet workflow. Final IRS output remains blocked until official PDF, coordinate lock, professional signoff, client verification, and production gates pass.</p><p class="small">${escapeHtml(form9465ClientRelease.policy?.print_signature_rule || '')}</p><ul>${f9465PrintBlockers}</ul></div><div class="card wide"><h2>9465 final output gate audit + client-ready draft path</h2><p>Final gate audit: ${escapeHtml(String(f9465FinalAudit.passed || 0))}/${escapeHtml(String(f9465FinalAudit.required_gates || 0))} gates passed · Supervised draft: ${f9465FinalAudit.supervised_client_draft_allowed ? 'allowed' : 'blocked'} · Final IRS output: ${f9465FinalAudit.final_client_irs_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.36 adds the final output gate audit, first client-ready draft path once PDF gates pass, final release board, and audit packet workflow. It remains blocked until official PDF, checksum, coordinate lock, visual QA, client verification, professional release, payment/quote, and production security all pass.</p><p class="small">${escapeHtml(form9465FinalReleasePolicy.policy?.customer_language || '')}</p><ul>${f9465FinalAuditGates}</ul><p class="small"><strong>Next step:</strong> ${escapeHtml(f9465ClientReadyPath.client_next_step || '')}</p></div><div class="card wide"><h2>9465 operational capture test + true coordinate QA</h2><p>Operational capture test: ${escapeHtml(String(f9465OperationalCaptureTest.passed || 0))}/${escapeHtml(String(f9465OperationalCaptureTest.required_checks || 0))} checks passed · True-coordinate QA: ${escapeHtml(String(f9465TrueCoordinateWorkflow.passed || 0))}/${escapeHtml(String(f9465TrueCoordinateWorkflow.required_checks || 0))} checks passed · Final output: ${f9465OperationalReadiness.client_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.37 adds an operational capture/upload test, measured-coordinate QA workflow, tolerance checks, staff QA board, and final-release readiness from operational QA. Client IRS output remains blocked until all gates pass.</p><ul>${f9465OperationalChecks}</ul></div><div class="card wide"><h2>9465 capture completion + coordinate simulation approvals</h2><p>Capture completion: ${escapeHtml(String(f9465CaptureCompletionReadiness.passed || 0))}/${escapeHtml(String(f9465CaptureCompletionReadiness.required_checks || 0))} checks passed · Actual gate passed: ${f9465CaptureCompletionReadiness.actual_gate_passed ? 'yes' : 'no'} · Simulation approved: ${f9465SimulationSummary.staff_simulation_approved ? 'yes' : 'no'} · Client IRS output: ${f9465StaffApprovalReport.client_output_allowed ? 'allowed' : 'blocked'}</p><p class="notice-text">v0.1.38 adds capture/upload completion readiness, coordinate-lock simulation, staff approval gates, and internal completion packets. Simulation approval cannot authorize final client output.</p><ul>${f9465CaptureCompletionChecks}</ul><h3>Staff approval gates</h3><ul>${f9465StaffApprovalChecks}</ul></div><div class="card wide"><h2>9465 field candidates</h2><ul>${f9465FieldRows}</ul><h3>9465 sample QA cases</h3><ul>${f9465Samples}</ul></div><div class="card wide"><h2>AI-first form completion</h2><p>${escapeHtml(aiPolicy.policy?.goal || '')}</p><p class="notice-text">${escapeHtml(aiPolicy.policy?.human_minimization_rule || '')}</p><ol>${pipelineRows}</ol></div><div class="card wide"><h2>First-wave AI interview templates</h2><div class="grid two">${automationForms}</div></div><div class="card"><h2>Ready for official form ZIPs</h2><p>${guide.guide.ready_for_uploads ? 'Yes — the platform can accept official IRS/NYS/NYC form ZIPs and build a mapping queue.' : 'Not ready yet.'}</p><p><strong>Preferred:</strong> one agency per ZIP, keep official filenames, include instructions, and provide source page URL.</p><ul class="list-clean">${(guide.guide.what_to_upload_now || []).map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div><div class="card"><h2>Readiness matrix</h2><p>Total uploaded forms: ${escapeHtml(String(matrixSummary.total || 0))} · Client-output ready: ${escapeHtml(String(matrixSummary.client_output_ready || 0))}</p><p class="small">Statuses: ${escapeHtml(JSON.stringify(matrixSummary.by_status || {}))}</p><p class="notice-text">${escapeHtml(matrix.matrix?.policy || '')}</p></div><div class="card wide"><h2>Controlled mapping stages</h2><ol>${stages}</ol></div><div class="card wide"><h2>Seeded source records</h2>${sourceRows}</div><div class="card wide"><h2>First official government source catalog</h2><ul>${catalogRows}</ul></div><div class="grid two">${waves}</div><div class="card wide"><h2>Form QA checklist before client output</h2><ul>${qa}</ul></div><div class="card wide"><h2>Current PDF mapping queue</h2>${rows}</div>`;
   } catch (error) {
     box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`;
   }
@@ -1105,3 +1797,85 @@ async function loadMarketingConversion() {
 // v0.1.36 IRS Form 9465 final release markers: final-release-policy, final-output-gate-audit, client-ready-draft-path, client-ready-draft-packet, final-release-board, final release gate audit, client-ready draft path.
 // v0.1.37 IRS Form 9465 operational QA markers: operational-capture-test, true-coordinate-qa-workflow, operational-qa-board, true-coordinate-qa-status, final-release readiness from operational QA.
 // v0.1.38 IRS Form 9465 capture-completion markers: capture-completion-readiness, coordinate-lock-simulation-plan, staff-approval-gate-report, capture-completion-board, capture-completion-status.
+
+async function loadPublicLaunchAudit() {
+  const box = qs('#public-launch-audit');
+  if (!box) return;
+  try {
+    const auditJson = await api('/api/platform/public-launch-audit');
+    const actionJson = await api('/api/platform/public-launch-action-plan');
+    const valueJson = await api('/api/platform/user-value-polish-plan');
+    const conversionJson = await api('/api/platform/launch-conversion-checklist');
+    const completionJson = await api('/api/platform/public-launch-completion-audit');
+    const packagingJson = await api('/api/platform/version-packaging-audit');
+    const separationJson = await api('/api/platform/staff-public-separation-audit');
+    const audit = auditJson.audit || {};
+    const readiness = audit.readiness || {};
+    const action = actionJson.action_plan || {};
+    const value = valueJson.plan || {};
+    const conversion = conversionJson.checklist || {};
+    const completion = completionJson.audit || {};
+    const copy = conversionJson.trust_and_safety_copy || {};
+    const packaging = packagingJson.audit || audit.version_and_packaging_hygiene || {};
+    const separation = separationJson.audit || audit.staff_public_separation || {};
+    const packageChecks = (packaging.checks || []).map((x) => `<li>${x.passed ? '✅' : '⬜'} <strong>${escapeHtml(x.label || '')}</strong> <span class="small">${escapeHtml(x.evidence || '')}</span></li>`).join('');
+    const publicPages = (separation.public_customer_pages || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const staffPages = (separation.internal_or_staff_pages || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const scoreItems = (readiness.items || []).map((item) => `<li>${item.passed ? '✅' : '⬜'} <strong>${escapeHtml(item.label)}</strong> <span class="small">(${escapeHtml(String(item.weight || 0))} pts)</span></li>`).join('');
+    const blockers = (audit.top_blockers || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('') || '<li>No blockers reported.</li>';
+    const completionGates = (completion.gates || []).map((gate) => `<div class="card"><h3>${gate.ready ? '✅' : '⬜'} ${escapeHtml(gate.label || '')}</h3><p><strong>Mode:</strong> ${escapeHtml(gate.launch_mode || '')}</p><p><strong>Owner action:</strong> ${escapeHtml(gate.owner_action || '')}</p><ul>${(gate.missing || []).map((m) => `<li>${escapeHtml(m)}</li>`).join('') || '<li>No missing gate items reported.</li>'}</ul></div>`).join('');
+    const plainStatus = completion.plain_english_answer || {};
+    const complianceRows = (completion.compliance_reference_matrix || []).map((row) => `<li><strong>${escapeHtml(row.source || '')}</strong>: ${escapeHtml(row.platform_control || '')} <span class="small">${escapeHtml(row.launch_effect || '')}</span></li>`).join('');
+    const next = (audit.immediate_next_actions || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const phases = (action.phases || []).map((phase) => `<div class="card"><h3>${escapeHtml(phase.phase)}</h3><p><strong>Status:</strong> ${escapeHtml(phase.status || '')}</p><ul>${(phase.tasks || []).map((t) => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`).join('');
+    const valueAdds = (value.recommended_next_value_adds || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const checklist = (conversion.checklist || []).map((x) => `<li><strong>${escapeHtml(x.area || '')}</strong>: ${escapeHtml(x.item || '')} <span class="small">${escapeHtml(x.status || '')}</span></li>`).join('');
+    const mustSay = (copy.public_copy_must_say || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    const mustNot = (copy.public_copy_must_not_say || []).map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    box.innerHTML = `<div class="stat-row"><div class="stat"><strong>${escapeHtml(String(readiness.score || 0))}%</strong>Launch readiness</div><div class="stat"><strong>${escapeHtml(String(completion.completion_score || 0))}%</strong>Completion gates</div><div class="stat"><strong>${audit.can_public_site_be_seen ? 'Yes' : 'No'}</strong>Public site</div><div class="stat"><strong>${audit.can_invite_private_pilot_users ? 'Yes' : 'No'}</strong>Private pilot</div><div class="stat"><strong>${audit.can_accept_real_sensitive_tax_documents ? 'Yes' : 'No'}</strong>Real sensitive docs</div><div class="stat"><strong>${audit.can_run_broad_paid_marketing ? 'Yes' : 'No'}</strong>Broad paid launch</div></div><div class="card wide"><h2>Public launch audit</h2><p><strong>${escapeHtml(audit.status || '')}</strong></p><p>${escapeHtml(audit.safe_public_positioning || '')}</p><p class="notice-text">${escapeHtml(audit.policy?.principle || '')}</p><ul class="checklist">${scoreItems}</ul></div><div class="card wide"><h2>v0.1.51 completion-gate audit</h2><p><strong>Recommended current mode:</strong> ${escapeHtml(completion.recommended_current_mode || '')}</p><div class="grid two"><div><h3>Plain-English launch answer</h3><ul><li>Public site: ${escapeHtml(plainStatus.public_site || '')}</li><li>Private pilot: ${escapeHtml(plainStatus.private_pilot || '')}</li><li>Paid pilot: ${escapeHtml(plainStatus.paid_pilot || '')}</li><li>Live sensitive documents: ${escapeHtml(plainStatus.live_sensitive_documents || '')}</li><li>Official form output: ${escapeHtml(plainStatus.official_form_output || '')}</li><li>Broad marketing: ${escapeHtml(plainStatus.broad_marketing || '')}</li></ul></div><div><h3>Compliance references to resolve</h3><ul>${complianceRows}</ul></div></div><div class="grid two">${completionGates}</div></div><div class="grid two"><div class="card"><h2>Top blockers</h2><ul>${blockers}</ul></div><div class="card"><h2>Immediate next actions</h2><ul>${next}</ul></div></div><div class="card wide"><h2>Launch phases</h2><div class="grid two">${phases}</div></div><div class="card wide"><h2>Version and packaging hygiene</h2><p><strong>${escapeHtml(packaging.status || '')}</strong></p><p class="small">Clean ZIP target: ${escapeHtml(packaging.clean_zip_name || '')}</p><ul>${packageChecks}</ul></div><div class="grid two"><div class="card"><h2>Public customer pages</h2><ul>${publicPages}</ul></div><div class="card"><h2>Staff/internal pages</h2><ul>${staffPages}</ul></div></div><div class="card wide"><h2>User-value polish plan</h2><p>${escapeHtml(value.headline || '')}</p><ul>${valueAdds}</ul></div><div class="card wide"><h2>Conversion checklist</h2><ul>${checklist}</ul></div><div class="grid two"><div class="card"><h2>Public copy must say</h2><ul>${mustSay}</ul></div><div class="card"><h2>Public copy must not say</h2><ul>${mustNot}</ul></div></div>`;
+  } catch (error) {
+    box.innerHTML = `<div class="card"><p>${escapeHtml(error.message)}</p></div>`;
+  }
+}
+
+async function recordPublicLaunchDecision(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const output = qs('#public-launch-decision-output');
+  const data = Object.fromEntries(new FormData(form).entries());
+  const token = data.admin_token || '';
+  delete data.admin_token;
+  try {
+    const json = await api('/api/staff/public-launch-decision', { method: 'POST', headers: token ? { 'x-admin-token': token } : {}, body: JSON.stringify(data) });
+    if (output) output.textContent = `Recorded ${json.decision.status} for ${json.decision.scope}`;
+    await loadPublicLaunchAudit();
+  } catch (error) {
+    if (output) output.textContent = error.message;
+  }
+}
+
+window.loadPublicLaunchAudit = loadPublicLaunchAudit;
+window.recordPublicLaunchDecision = recordPublicLaunchDecision;
+
+// v0.1.51 Public Launch Audit / Public Launch Completion Audit / Taxpayer Action Center / Document Safety Center markers: public-launch-audit, public-launch-action-plan, public-launch-completion-audit, tax-notice-next-step-guide, taxpayer-action-center, document-safety-center, public-launch-closeout-plan, public-launch-roadmap, owner-public-launch-checklist, review-level-self-check, urgency-triage-guide, tax-urgency-triage, user-value-polish-plan, launch-conversion-checklist, public launch control room, Version and packaging hygiene, Staff/public separation audit, completion-gate audit, real-user-launch-readiness, first-real-user-operating-plan, real-user-safety-check, real-user-launch-center, real-user-go-live-gate, first-public-user-start-guide, pre-submit-real-user-check, launch-day-runbook, first-public-user-start, safe-tax-summary-builder, safe-tax-summary-builder-guide, safe-tax-summary, after-you-start-guide, after-you-start, post-submit-expectation-check, first-case-followup-board, first-user-feedback-guide, first-user-feedback, first-user-feedback-board, first-user-feedback, final-controlled-launch-closeout, deployment-preparation-checklist, public-navigation-audit, compliance-source-freshness, privacy-safe-analytics-audit, first-cohort-operating-guide, controlled-public-launch-closeout, staff-pilot-ops.
+
+// v0.1.56 markers: IRS Form 2848 and 8821 authorization organizer bundle, irs-authorization-workspace, refund-efile-bank-products, refund-efile-bank-product-readiness, Refund Transfer future gate, refund advance future gate, pay-by-refund future gate.
+
+// v0.1.56 markers: role-based UX polish, dashboard refinement, staff workbench refinement, public-language safety matrix, experience-polish audit page.
+
+// v0.1.56 Spanish-language UX parity audit markers: spanish-language-audit spanish-public-start-map spanish-staff-guidance spanish-marketing-copy-matrix
+// v0.1.59 preserved unified start flow markers: public-start-map unified-start-readiness-audit personal-filing-readiness business-filing-readiness prior-year-amendment-opportunity free-truth-check-summary personal-return-filing business-return-filing past-return-review free-truth-check fix-tax-problem
+// v0.1.59 preserved summary markers: Personal Filing Readiness Summary | Business Filing Readiness Summary | Prior-Year Return Review / Amendment Opportunity Summary | Tax Problem Truth Check Summary
+// v0.1.59 preserved prior-return review marketing prominence markers: prior-return-review-marketing-audit prior-return-review-marketing-copy prior-return-review-dashboard-guidance Review My Past Returns Check for Amendment Opportunities Filed already? A second look may uncover something worth correcting.
+
+// v0.1.59 full-platform polish markers: full-platform-polish-audit customer-language-polish-checklist public-journey-polish-map staff-dashboard-polish-map sitewide-safe-copy-matrix Not sure where to start? Your next safest action Staff UX quality gate
+
+// v0.1.60 1040-X amendment organizer markers: irs-form-1040x-workspace 1040-x field-map organizer-schema completion-plan sample-fill-audit verification-sheet draft-pdf IRS Form 1040-X controlled organizer + field map Amended U.S. Individual Income Tax Return
+
+// v0.1.62 non-form platform readiness markers: official-pdf-intake platform-readiness-workbench deployment-readiness no-more-form-buildout-policy official-pdf-intake-infrastructure non-form-platform-readiness-closeout upload-safety-readiness-audit spanish-parity-next-polish official-form-pdfs No more form bundles without official PDFs.
+
+// v0.1.62 platform continuity polish markers: platform-continuity-polish continuity-polish-audit customer-flow-quality-gate staff-daily-operating-map pricing-message-alignment spanish-parity-action-plan marketing-safety-review official-pdf-readiness-ladder deployment-smoke-test-plan.
+
+// v0.1.63 data continuity markers: platform-data-continuity data-continuity-safeguards persistence-readiness save-resume-readiness deployment-data-preservation-checklist work-progress/drafts case progress save deployment-data-check Stop now, resume later Never treat a deployment as a data reset.
+
+// v0.1.64 release continuity markers: release-continuity-audit homepage-stability-rule save-resume-continuity-map deployment-safe-release-gates payment-quote-preservation-checklist professional/work-progress/drafts release-continuity-check quote-payment-preservation-check.

@@ -573,3 +573,150 @@ create index if not exists idx_storage_scan_events_case on storage_scan_events(c
 create index if not exists idx_storage_scan_events_status on storage_scan_events(scan_status, created_at);
 create index if not exists idx_email_delivery_events_template on email_delivery_events(template_key, created_at);
 create index if not exists idx_deployment_check_events_key on deployment_check_events(check_key, created_at);
+
+
+-- v0.1.63 deployment-safe persistence and save/resume continuity
+create table if not exists work_progress_drafts (
+  id text primary key,
+  user_id text references users(id),
+  user_email text,
+  case_id text,
+  title text,
+  workflow text,
+  page_path text,
+  status text,
+  last_completed_section text,
+  progress_percent integer default 0,
+  data jsonb default '{}'::jsonb,
+  data_redaction_notice text,
+  last_saved_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists case_progress_saves (
+  id text primary key,
+  user_id text references users(id),
+  user_email text,
+  case_id text references tax_cases(id),
+  title text,
+  workflow text,
+  page_path text,
+  status text,
+  last_completed_section text,
+  progress_percent integer default 0,
+  data jsonb default '{}'::jsonb,
+  data_redaction_notice text,
+  case_status_at_save text,
+  payment_status_at_save text,
+  assigned_professional_id_at_save text,
+  last_saved_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists deployment_data_checks (
+  id text primary key,
+  actor_id text,
+  actor_role text,
+  release_version text,
+  status text,
+  note text,
+  readiness jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists data_preservation_events (
+  id text primary key,
+  event_key text,
+  payload jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+alter table tax_cases add column if not exists last_progress_save_id text;
+alter table tax_cases add column if not exists last_progress_saved_at timestamptz;
+alter table tax_cases add column if not exists last_progress_section text;
+alter table tax_cases add column if not exists progress_percent integer default 0;
+alter table tax_cases add column if not exists save_resume_status text;
+
+create index if not exists idx_work_progress_drafts_user on work_progress_drafts(user_id, updated_at desc);
+create index if not exists idx_case_progress_saves_case on case_progress_saves(case_id, updated_at desc);
+create index if not exists idx_deployment_data_checks_created on deployment_data_checks(created_at desc);
+
+-- v0.1.64 release continuity, quote/payment preservation, and professional save/resume work drafts
+create table if not exists professional_work_drafts (
+  id text primary key,
+  staff_id text,
+  staff_email text,
+  professional_role text,
+  case_id text references tax_cases(id),
+  title text,
+  workflow text,
+  status text,
+  last_completed_section text,
+  progress_percent integer default 0,
+  note_summary text,
+  private_sensitive_data_warning text,
+  checklist_state jsonb default '{}'::jsonb,
+  last_saved_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists deployment_continuity_snapshots (
+  id text primary key,
+  release_version text,
+  snapshot_type text,
+  counts jsonb default '{}'::jsonb,
+  storage_snapshot jsonb default '{}'::jsonb,
+  note text,
+  actor_id text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists release_integrity_checks (
+  id text primary key,
+  release_version text,
+  status text,
+  actor_id text,
+  actor_role text,
+  actor_email text,
+  checklist jsonb default '{}'::jsonb,
+  note text,
+  storage_snapshot jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists quote_payment_preservation_checks (
+  id text primary key,
+  release_version text,
+  actor_id text,
+  actor_role text,
+  actor_email text,
+  status text,
+  quotes_visible boolean default false,
+  payments_visible boolean default false,
+  stripe_webhook_checked boolean default false,
+  referral_rewards_checked boolean default false,
+  no_duplicate_payments_seen boolean default false,
+  note text,
+  snapshot_counts jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+
+create index if not exists idx_professional_work_drafts_case on professional_work_drafts(case_id, updated_at);
+create index if not exists idx_release_integrity_checks_version on release_integrity_checks(release_version, created_at);
+create index if not exists idx_quote_payment_preservation_checks_version on quote_payment_preservation_checks(release_version, created_at);

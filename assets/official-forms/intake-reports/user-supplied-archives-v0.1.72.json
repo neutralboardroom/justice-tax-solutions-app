@@ -1,0 +1,35 @@
+{
+  "version": "0.1.72",
+  "generatedAt": "2026-07-10",
+  "purpose": "Controlled comparison of the two user-supplied IRS form archives against packaged official-form assets.",
+  "individual": {
+    "archiveFilename": "Tax IRS Individual Forms(1).zip",
+    "archiveSha256": "176307c610825461e6ba47815f12a106e091c06a55bce56cf89e9d0e2d02cd66",
+    "archivePdfCount": 27,
+    "packagedPdfCount": 27,
+    "exactMatchCount": 27,
+    "changedFiles": [],
+    "onlyInArchive": [],
+    "onlyInPackagedCollection": [],
+    "allArchivePdfsMatched": true
+  },
+  "resolution": {
+    "archiveFilename": "Tax Debt  IRS Problem Resolution Forms (2)(1).zip",
+    "archiveSha256": "d7153841a36baf1a31061c8f614d7360f8cccb248008582a8e4c7a48b05ccfd0",
+    "archivePdfCount": 29,
+    "packagedPdfCount": 31,
+    "exactMatchCount": 29,
+    "changedFiles": [],
+    "onlyInArchive": [],
+    "onlyInPackagedCollection": [
+      "f8821",
+      "i8821"
+    ],
+    "allArchivePdfsMatched": true
+  },
+  "conclusion": {
+    "pdfsReplaced": false,
+    "reason": "Every PDF supplied in both archives exactly matches its packaged counterpart. The packaged resolution collection also contains Form 8821 and its instructions, which are preserved to avoid regression.",
+    "releaseBoundary": "Hash matching proves file identity only. It does not prove current revision, semantic mapping, calculation correctness, human QA, professional approval, owner release, filing readiness, or IRS acceptance."
+  }
+}

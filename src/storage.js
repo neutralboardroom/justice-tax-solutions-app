@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'storage', 'uploads');
 const DB_PATH = path.join(DATA_DIR, 'db.json');
-const APP_VERSION = '0.1.38';
+const APP_VERSION = '0.1.69';
 
 const DEFAULT_DB = {
   meta: { app: 'Justice Tax Solutions', version: APP_VERSION, created_at: new Date().toISOString() },
@@ -39,6 +39,9 @@ const DEFAULT_DB = {
   official_form_packages: [],
   official_forms: [],
   official_form_mappings: [],
+  official_form_mapping_records: [],
+  official_form_release_gates: [],
+  official_form_paid_pilot_cases: [],
   official_form_field_maps: [],
   official_form_sources: [],
   official_source_audits: [],
@@ -79,7 +82,17 @@ const DEFAULT_DB = {
   form_9465_release_events: [],
   form_9465_final_release_events: [],
   form_9465_true_coordinate_qa_events: [],
-  form_9465_capture_completion_events: []
+  form_9465_capture_completion_events: [],
+  public_launch_decisions: [],
+  first_user_feedback: [],
+  work_progress_drafts: [],
+  case_progress_saves: [],
+  deployment_data_checks: [],
+  data_preservation_events: [],
+  professional_work_drafts: [],
+  deployment_continuity_snapshots: [],
+  release_integrity_checks: [],
+  quote_payment_preservation_checks: []
 };
 
 function ensureDirs() {
@@ -254,13 +267,23 @@ function getDocument(documentId) {
 
 function storageSummary() {
   const db = readDb();
+  const appRoot = path.resolve(__dirname, '..');
+  const dataDirResolved = path.resolve(DATA_DIR);
+  const uploadDirResolved = path.resolve(UPLOAD_DIR);
+  const dataInsideAppDirectory = dataDirResolved.startsWith(appRoot + path.sep);
+  const uploadsInsideAppDirectory = uploadDirResolved.startsWith(appRoot + path.sep);
   return {
     mode: process.env.DATABASE_URL ? 'json-local-with-postgres-schema-ready' : 'json-local-encrypted-documents',
     counts: Object.fromEntries(Object.keys(DEFAULT_DB).filter((k) => Array.isArray(DEFAULT_DB[k])).map((k) => [k, Array.isArray(db[k]) ? db[k].length : 0])),
     data_dir: DATA_DIR,
     upload_dir: UPLOAD_DIR,
+    app_root: appRoot,
+    data_inside_app_directory: dataInsideAppDirectory,
+    uploads_inside_app_directory: uploadsInsideAppDirectory,
+    data_path_risk: dataInsideAppDirectory || uploadsInsideAppDirectory,
     document_encryption: 'aes-256-gcm',
-    secure_object_storage_configured: process.env.SECURE_OBJECT_STORAGE_CONFIGURED === 'true'
+    secure_object_storage_configured: process.env.SECURE_OBJECT_STORAGE_CONFIGURED === 'true',
+    production_storage_note: 'For paid users, DATA_DIR/UPLOAD_DIR must be persistent or external to the source release folder, or replaced by managed PostgreSQL/private object storage. Source deployments must never delete runtime data.'
   };
 }
 

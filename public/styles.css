@@ -281,3 +281,41 @@ pre.api { white-space: pre-wrap; background:#111827; color:#e5e7eb; border-radiu
 .ok-card { border-left: 5px solid var(--success); }
 .card.wide { grid-column: 1 / -1; }
 @media (max-width: 720px) { .card.wide { grid-column: auto; } }
+
+/* v0.1.49 safe tax summary builder */
+.summary-box { white-space: pre-wrap; background:#f8fafc; border:1px solid var(--line); border-radius:14px; padding:14px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.92rem; line-height:1.5; }
+
+/* v0.1.56 role-based UX polish */
+.button.ghost { background: transparent; color: var(--brand-dark); border: 1px dashed rgba(12,92,120,.45); box-shadow: none; }
+.button.ghost:hover { background: rgba(12,92,120,.06); text-decoration: none; }
+.priority-actions { gap: 10px; }
+.role-gateway { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr); gap: 20px; align-items: center; }
+.role-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.role-grid a { display: block; border: 1px solid var(--line); border-radius: 16px; padding: 13px 14px; background: #fff; color: var(--ink); box-shadow: var(--shadow-soft); }
+.role-grid a:hover { transform: translateY(-1px); text-decoration: none; border-color: rgba(12,92,120,.42); }
+.role-grid strong { display: block; color: var(--brand-dark); }
+.role-grid span { display: block; color: var(--muted); font-size: .9rem; margin-top: 3px; }
+.status-ribbon { border-left: 5px solid var(--gold); background: #fffaf0; }
+.dashboard-quickstart { margin: 18px 0; }
+.staff-lanes { margin: 18px 0; }
+.grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.urgent-card { border-left: 5px solid var(--danger); }
+.link-card { color: var(--ink); }
+.link-card:hover { text-decoration: none; transform: translateY(-1px); border-color: rgba(12,92,120,.42); }
+.safe-mode-banner { border: 1px solid rgba(197,138,43,.45); background: #fffaf0; border-radius: 18px; padding: 16px; margin: 18px 0; }
+.safe-mode-banner strong { color: var(--navy); }
+.ux-pill-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.ux-pill-row span { border:1px solid var(--line); border-radius:999px; padding:6px 10px; color:var(--muted); background:#fff; font-size:.88rem; }
+@media (max-width: 1040px) { .grid.five { grid-template-columns: repeat(2, minmax(0, 1fr)); } .role-gateway { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .grid.five, .role-grid { grid-template-columns: 1fr; } .customer-flow-strip { grid-template-columns: 1fr; } }
+
+
+/* v0.1.59 full-platform UX and language polish */
+.platform-polish-strip .card, .dashboard-path-helper, #pricing-plain-english { border-left: 5px solid rgba(12,92,120,.34); }
+.clarity-card h2 { font-size: 1.25rem; }
+.highlight-card { background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%); border-color: rgba(197,138,43,.45); }
+.featured-card, .featured-path, .amendment-feature-card { border-color: rgba(197,138,43,.55); box-shadow: 0 14px 32px rgba(197,138,43,.12); }
+.dashboard-path-helper { margin: 18px 0; }
+.staff-page .card h3, .dashboard-page .card h3 { color: var(--brand-dark); }
+.public-copy-standard { border-left: 5px solid var(--brand); background: #f8fbff; }
+@media (max-width: 760px) { #pricing-plain-english h1 { font-size: clamp(1.75rem, 8vw, 2.5rem); } }

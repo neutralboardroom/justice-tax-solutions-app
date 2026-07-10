@@ -15,6 +15,12 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const { VERSION: IRS_RESOLUTION_ENGINE_VERSION, QUESTIONNAIRE: IRS_RESOLUTION_QUESTIONNAIRE, buildLibrarySummary: buildIrsResolutionLibrarySummary, recommendResolutionPath, createMappingRecord: createIrsResolutionMappingRecord, buildQaChecklist: buildIrsResolutionQaChecklist } = require('./src/irsResolutionFormEngine');
+const { VERSION: OFFICIAL_RELEASE_VERSION, RELEASE_CHECKS: OFFICIAL_RELEASE_CHECKS, summarizeFieldInventory, normalizeGateRecord, evaluateFormRelease, buildPaidPilotCase } = require('./src/officialFormOperationalRelease');
+const { VERSION: INDIVIDUAL_ENGINE_VERSION, QUESTIONS: INDIVIDUAL_TAX_QUESTIONS, recommend: recommendIndividualTaxForms, summary: buildIndividualTaxFormSummary } = require('./src/individualTaxFormEngine');
+const { VERSION: SIMPLE_1040_VERSION, SOURCE: SIMPLE_1040_SOURCE, PILOT_POLICY: SIMPLE_1040_POLICY, INTERVIEW_QUESTIONS: SIMPLE_1040_QUESTIONS, buildFieldMapReport: buildSimple1040FieldMapReport, buildInterviewState: buildSimple1040InterviewState, buildCompletionPlan: buildSimple1040CompletionPlan, createDraftPdfBuffer: createSimple1040DraftPdfBuffer, buildReadiness: buildSimple1040Readiness } = require('./src/form1040SimpleW2');
+const { VERSION: CREDITS_DEPENDENTS_VERSION, SOURCES: CREDITS_DEPENDENTS_SOURCES, FORM_POLICIES: CREDITS_DEPENDENTS_POLICIES, ROUTING_QUESTIONS: CREDITS_DEPENDENTS_QUESTIONS, buildLibrary: buildCreditsDependentsLibrary, recommendForms: recommendCreditsDependentsForms, organizer: buildCreditsDependentsOrganizer, buildEicCompletionPlan, eicFieldMapReport, createEicDraftPdfBuffer, build8880CompletionPlan, form8880FieldMapReport, create8880DraftPdfBuffer, calculate8880, readiness: buildCreditsDependentsReadiness } = require('./src/creditsDependentsFormEngine');
+const { VERSION: OPERATIONAL_GATE_VERSION, EXTERNAL_CONTROLS, mappingSummary: buildSemanticMappingSummary, sampleQaSummary: buildSampleQaSummary, normalizeEvidence: normalizeOperationalEvidence, evaluateOperationalLaunch } = require('./src/productionOperationalGate');
 
 const store = require('./src/storage');
 const { STARTING_PATHS, FEDERAL_MVP_FORMS, NY_MVP_FORMS, NYC_MVP_WORKFLOWS, analyzeCase } = require('./src/taxRules');
@@ -43,6 +49,11 @@ const { buildProfessionalSessionProducts, buildSessionRouting, buildPreSessionRe
 const { buildCalendarIntegrationGuide, buildAppointmentOptions, professionalCalendarRecord, listProfessionalCalendarConfigs, buildSchedulingReadiness, createAppointmentSchedulingRequest, updateProfessionalSessionSchedule, buildAppointmentSchedulingBoard } = require('./src/calendarIntegrations');
 const { buildProductionSecurityReadiness, buildSensitiveDataHandlingRunbook, buildAccessControlAudit, buildSecurityLaunchBlockers, buildStaffSecurityGoLiveChecklist } = require('./src/productionSecurity');
 const { IRS_9465_OFFICIAL_SOURCE, IRS_9465_OUTPUT_POLICY, build9465FieldMapReport, build9465CompletionPlan, build9465OutputReadiness, build9465SampleCases, build9465SampleFillAudit, build9465VerificationSheet, create9465DraftPdfBuffer, record9465QaStatus } = require('./src/form9465Output');
+const { IRS_433F_OFFICIAL_SOURCE, IRS_433F_OUTPUT_POLICY, build433FFieldMapReport, build433FOrganizerSchema, build433FCompletionPlan, build433FOutputReadiness, build433FSampleCases, build433FSampleFillAudit, build433FVerificationSheet, create433FDraftPdfBuffer } = require('./src/form433FOutput');
+const { AUTHORIZATION_OUTPUT_POLICY, IRS_AUTHORIZATION_SOURCES, buildAuthorizationFieldMapReport, buildAuthorizationOrganizerSchema, buildAuthorizationCompletionPlan, buildAuthorizationOutputReadiness, buildAuthorizationSampleCases, buildAuthorizationSampleFillAudit, buildAuthorizationVerificationSheet, createAuthorizationDraftPdfBuffer } = require('./src/formAuthorizationBundle');
+const { APPEALS_ABATEMENT_POLICY, IRS_APPEALS_ABATEMENT_SOURCES, buildAppealsAbatementFieldMapReport, buildAppealsAbatementOrganizerSchema, buildAppealsAbatementCompletionPlan, buildAppealsAbatementOutputReadiness, buildAppealsAbatementSampleCases, buildAppealsAbatementSampleFillAudit, buildAppealsAbatementVerificationSheet, createAppealsAbatementDraftPdfBuffer } = require('./src/formAppealsAbatementBundle');
+const { IRS_1040X_OFFICIAL_SOURCE, IRS_1040X_OUTPUT_POLICY, build1040XFieldMapReport, build1040XOrganizerSchema, build1040XCompletionPlan, build1040XOutputReadiness, build1040XSampleCases, build1040XSampleFillAudit, build1040XVerificationSheet, create1040XDraftPdfBuffer } = require('./src/form1040XAmendmentBundle');
+const { REFUND_BANK_PRODUCT_POLICY, buildRefundBankProductReadiness } = require('./src/refundBankProductReadiness');
 const { PROFESSIONAL_OPERATIONS_POLICY, CREDENTIAL_REQUIREMENT_MATRIX, SIGNOFF_TYPES, professionalCredentialProfile, buildCredentialVerificationPlan, buildProfessionalOperationsReadiness, buildCredentialRenewalQueue, buildProfessionalAssignmentMatrix, recommendCaseReviewer, createProfessionalSignoff, buildClientReviewerDisclosure, buildProfessionalOperationsBoard } = require('./src/professionalOperations');
 const { PAYMENT_QUOTE_EMAIL_POLICY, TRANSACTIONAL_EMAIL_TEMPLATES_V2, buildPaymentQuoteEmailWorkflow, createQuoteRecord, approveQuote, createPaymentRequestFromQuote, createSafeMessageEvent, createAppointmentMessage, buildPaymentOperationsBoard, buildCasePaymentSummary } = require('./src/paymentWorkflow');
 const { SERVICE_PAGES, buildMarketingConversionPlan, buildCampaignLandingChecklist, buildSeoServicePageRoadmap, listMarketingPages, getMarketingPage } = require('./src/marketingConversion');
@@ -56,6 +67,27 @@ const { FORM_9465_CLIENT_RELEASE_POLICY, build9465ClientVerificationChecklist, c
 const { FORM_9465_FINAL_RELEASE_POLICY, build9465FinalOutputGateAudit, build9465ClientReadyDraftPath, record9465FinalReleaseAuditStatus, build9465FinalReleaseBoard, create9465ClientReadyDraftPacketPdfBuffer } = require('./src/form9465FinalRelease');
 const { FORM_9465_OPERATIONAL_QA_POLICY, build9465OperationalCaptureTest, build9465TrueCoordinateQaWorkflow, record9465TrueCoordinateQaStatus, build9465OperationalQaBoard, build9465FinalReleaseReadinessFromOperationalQa, create9465OperationalQaPacketPdfBuffer } = require('./src/form9465OperationalQa');
 const { FORM_9465_CAPTURE_COMPLETION_POLICY, build9465CaptureCompletionReadiness, build9465CoordinateLockSimulationPlan, record9465CaptureCompletionStatus, build9465StaffApprovalGateReport, build9465CaptureCompletionBoard, create9465CaptureCompletionPacketPdfBuffer } = require('./src/form9465CaptureCompletion');
+const { PUBLIC_LAUNCH_POLICY, buildPublicLaunchAudit, buildPublicLaunchActionPlan, buildUserValuePolishPlan, buildLaunchConversionChecklist, buildTrustAndSafetyCopyMatrix, buildStaffPublicLaunchControlRoom, buildVersionPackagingAudit, buildStaffPublicSeparationAudit, recordPublicLaunchDecision } = require('./src/publicLaunchAudit');
+const { buildPublicLaunchCompletionAudit, buildTaxNoticeNextStepGuide } = require('./src/publicLaunchCompletion');
+const { buildTaxpayerActionCenter, buildReviewLevelSelfCheck } = require('./src/taxpayerActionCenter');
+const { buildDocumentSafetyCenter, buildPublicLaunchCloseoutPlan } = require('./src/documentSafetyCenter');
+const { buildTaxUrgencyTriage, buildTaxUrgencyTriageGuide } = require('./src/taxUrgencyTriage');
+const { buildPublicLaunchRoadmap, buildOwnerPublicLaunchChecklist } = require('./src/publicLaunchRoadmap');
+const { buildRealUserLaunchReadiness, buildFirstRealUserOperatingPlan, buildRealUserSafetyCheck } = require('./src/realUserLaunch');
+const { buildRealUserGoLiveGate, buildFirstPublicUserStartGuide, buildPreSubmitRealUserCheck, buildLaunchDayRunbook } = require('./src/realUserGoLive');
+const { buildSafeTaxSummaryBuilderGuide, buildSafeTaxSummary, buildPublicLaunchFinalReadinessChecklist } = require('./src/safeSummaryBuilder');
+const { buildAfterYouStartGuide, buildPostSubmitExpectationCheck, buildFirstCaseFollowupBoard } = require('./src/afterStartGuidance');
+const { buildFirstUserFeedbackGuide, buildFirstUserFeedbackRecord, buildFirstUserFeedbackBoard } = require('./src/firstUserFeedback');
+const { buildFinalControlledPublicLaunchCloseout, buildDeploymentPreparationChecklist, buildPublicNavigationAudit, buildFirstCohortStaffOperatingGuide, buildComplianceSourceFreshness, buildPrivacySafeAnalyticsAudit } = require('./src/controlledLaunchCloseout');
+const { buildExperiencePolishAudit, buildRoleBasedStartMap, buildDashboardUxGuidance, buildStaffUxGuidance, buildPublicLanguageSafetyMatrix } = require('./src/uxRefinement');
+const { buildSpanishLanguageAudit, buildSpanishPublicStartMap, buildSpanishStaffGuidance, buildSpanishMarketingCopyMatrix } = require('./src/spanishUx');
+const { buildPublicStartMap, buildUnifiedIntakeResult, buildPersonalFilingReadiness, buildBusinessFilingReadiness, buildAmendmentOpportunitySummary, buildTruthCheckSummary, buildStaffQueueRecord, buildUnifiedStartReadinessAudit } = require('./src/unifiedTaxStart');
+const { PRIOR_RETURN_REVIEW_MARKETING, buildPriorReturnReviewMarketingAudit, buildPriorReturnReviewMarketingCopy, buildPriorReturnReviewDashboardGuidance } = require('./src/priorReturnReviewMarketing');
+const { buildFullPlatformPolishAudit, buildCustomerLanguagePolishChecklist, buildPublicJourneyPolishMap, buildStaffDashboardPolishMap, buildSitewideSafeCopyMatrix } = require('./src/platformPolishAudit');
+const { buildNonFormPlatformReadinessCloseout, buildOfficialPdfIntakeInfrastructure, buildUploadSafetyReadinessAudit, buildDeploymentReadinessCloseout, buildSpanishParityNextPolish, NO_MORE_FORMS_WITHOUT_OFFICIAL_PDF_POLICY, ingestOfficialPdfUploads } = require('./src/officialPdfIntakeInfrastructure');
+const { CUSTOMER_FLOW_QUALITY_GATE, STAFF_DAILY_OPERATING_MAP, PRICING_MESSAGE_ALIGNMENT, SPANISH_PARITY_ACTION_PLAN, MARKETING_SAFETY_REVIEW, OFFICIAL_PDF_READINESS_LADDER, DEPLOYMENT_SMOKE_TEST_PLAN, buildContinuityPolishAudit } = require('./src/platformContinuityPolish');
+const { DATA_PRESERVATION_POLICY, SAVE_RESUME_MODEL, buildDraftPayload, publicDraft, buildPersistenceReadiness, buildDeploymentDataPreservationChecklist, buildSaveResumeReadiness, buildDataContinuityAudit } = require('./src/dataContinuity');
+const { HOMEPAGE_STABILITY_RULE, RELEASE_DATA_PRESERVATION_GATES, SAVE_RESUME_CONTINUITY_MAP, QUOTE_PAYMENT_PRESERVATION, DEPLOYMENT_RELEASE_CHECK_SEQUENCE, buildReleaseContinuityAudit, buildProfessionalWorkDraftPayload, recordReleaseContinuityCheck, recordQuotePaymentPreservationCheck } = require('./src/releaseContinuity');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -395,11 +427,16 @@ async function generateReferralFlyerPdf({ code, startLink, partnerName = '' }) {
   const gray = '#5B6470';
   const light = '#F7FAFE';
   const border = '#D6E3F2';
+  const flyerLogoPath = path.join(__dirname, 'public', 'marketing-logo.png');
   doc.rect(0, 0, doc.page.width, 18).fill(navy);
-  doc.fillColor(navy).font('Helvetica-Bold').fontSize(19).text('Justice Tax Solutions', 42, 36, { width: 220 });
-  doc.fillColor(gray).font('Helvetica').fontSize(10.5).text('Tax help when you need more than software.', 42, 62, { width: 250 });
-  doc.fillColor(ink).font('Helvetica-Bold').fontSize(18).text('IRS, NY State, or NYC tax problem?', 265, 36, { width: 290, align: 'right' });
-  doc.fillColor(gray).font('Helvetica').fontSize(10.5).text('Start free. Upload a notice, organize tax documents, or ask for return/tax-debt review.', 260, 64, { width: 300, align: 'right' });
+  if (fs.existsSync(flyerLogoPath)) {
+    doc.image(flyerLogoPath, 42, 32, { fit: [265, 50] });
+  } else {
+    doc.fillColor(navy).font('Helvetica-Bold').fontSize(19).text('Justice Tax Solutions', 42, 36, { width: 220 });
+    doc.fillColor(gray).font('Helvetica').fontSize(10.5).text('Tax help when you need more than software.', 42, 62, { width: 250 });
+  }
+  doc.fillColor(ink).font('Helvetica-Bold').fontSize(18).text('IRS, NY State, or NYC tax problem?', 265, 38, { width: 290, align: 'right' });
+  doc.fillColor(gray).font('Helvetica').fontSize(10.5).text('Start free. Upload a notice, organize tax documents, or ask for return/tax-debt review.', 260, 66, { width: 300, align: 'right' });
 
   const topY = 124;
   doc.roundedRect(42, topY, 300, 210, 12).lineWidth(1).strokeColor(border).fillAndStroke(light, border);
@@ -450,23 +487,23 @@ function productionReadinessSummary() {
     { key: 'jwt_secret', label: 'Strong JWT/session secret configured', ok: hasJwt },
     { key: 'admin_token', label: 'Admin token configured', ok: hasAdmin },
     { key: 'public_base_url', label: 'Public base URL configured', ok: hasPublicUrl },
-    { key: 'database', label: 'Managed database configured', ok: hasDb, note: hasDb ? 'DATABASE_URL present; v0.1.30 keeps db/postgres-schema.sql, database-adapter readiness reporting, calendar/scheduling readiness, production-security readiness, marketing conversion readiness, staff cockpit analytics, and private pilot release-candidate gates while local JSON remains the development fallback.' : 'Local JSON storage only. Use Render PostgreSQL before live production.' },
-    { key: 'document_encryption', label: 'Document encryption key configured', ok: hasDocumentKey, note: 'v0.1.30 keeps encrypted local uploaded files at rest with AES-256-GCM and blocks live sensitive uploads unless database, storage, malware, staff, calendar/session, security, and private-pilot operating gates are enabled.' },
+    { key: 'database', label: 'Managed database configured', ok: hasDb, note: hasDb ? 'DATABASE_URL present; production database adapter readiness remains tracked while local JSON remains the development fallback.' : 'Local JSON storage only. Use Render PostgreSQL before live production.' },
+    { key: 'document_encryption', label: 'Document encryption key configured', ok: hasDocumentKey, note: 'Encrypted local uploaded files are for development/pilot testing only; live sensitive uploads remain blocked unless database, private storage, malware, staff, calendar/session, security, and private-pilot operating gates are enabled.' },
     { key: 'secure_document_storage', label: 'Secure object storage/private bucket configured', ok: process.env.SECURE_OBJECT_STORAGE_CONFIGURED === 'true', note: 'Encrypted local storage is acceptable for development; live tax documents should use managed private object storage.' },
     { key: 'stripe', label: 'Stripe payments/webhooks configured', ok: hasStripe },
     { key: 'email_recovery', label: 'Email provider or owner fallback configured for verification/password reset', ok: hasEmailProvider },
     { key: 'staff_permissions', label: 'Staff signup/approval controls configured', ok: hasStaffApproval },
     { key: 'owner_email', label: 'Owner/staff notification email configured', ok: hasOwnerEmail },
     { key: 'ai_vendors', label: 'At least one AI vendor configured', ok: configuredVendors().length > 0 },
-    { key: 'ocr_provider', label: 'Production OCR/document extraction provider configured', ok: process.env.OCR_PROVIDER_CONFIGURED === 'true' || process.env.TEXTRACT_CONFIGURED === 'true' || process.env.GOOGLE_DOCUMENT_AI_CONFIGURED === 'true', note: 'v0.1.30 keeps local text/PDF extraction heuristics, AI-first form interview planning, professional operations/credential verification, professional-session readiness, calendar/scheduling integration scaffolding, marketing conversion pages, staff analytics, and private pilot sample-case gates; production should use OCR/document AI plus client/professional verification gates.' },
-    { key: 'official_form_library', label: 'Official IRS/NYS/NYC form source and PDF library enabled', ok: true, note: 'v0.1.30 can seed official government source URLs, validate official domains, capture official PDFs when enabled, build AI-first interviews/completion plans, route verified professionals, show output gates before any print-ready draft, route marketing pages into safe intake paths, and report private-pilot go/no-go status.' }
+    { key: 'ocr_provider', label: 'Production OCR/document extraction provider configured', ok: process.env.OCR_PROVIDER_CONFIGURED === 'true' || process.env.TEXTRACT_CONFIGURED === 'true' || process.env.GOOGLE_DOCUMENT_AI_CONFIGURED === 'true', note: 'Local text/PDF extraction heuristics support development and redacted/sample pilot testing; production should use OCR/document AI plus client/professional verification gates.' },
+    { key: 'official_form_library', label: 'Official IRS/NYS/NYC form source and PDF library enabled', ok: true, note: 'The platform can seed official government source URLs, validate official domains, capture official PDFs when enabled, build AI-first interviews/completion plans, route verified professionals, show output gates before any print-ready draft, route marketing pages into safe intake paths, and report private-pilot go/no-go status.' }
   ];
   return {
     ready_for_sensitive_tax_documents: checks.every((c) => c.ok),
     checks,
     role_permissions: ROLE_PERMISSIONS,
     reviewer_compliance_requirements: PREPARER_COMPLIANCE_REQUIREMENTS,
-    warning: 'v0.1.30 is a private pilot release candidate on top of marketing pages, staff cockpit analytics, payments/quotes, professional operations, production-security hardening, calendar/scheduling readiness, professional-session readiness, AI-first official form completion planning, and controlled IRS/NYS/NYC source capture. Source URLs, uploaded PDFs, captured PDFs, AI answers, and draft mappings remain blocked from final client-output use until source, edition, fields, calculations, sample-fill QA, client verification, required exception/professional review, Render PostgreSQL, private object storage, OCR/document-AI provider, malware scanning, Stripe live webhooks, staff approval, and e-file/professional procedures are configured.'
+    warning: 'v0.1.68 adds a controlled IRS Tax Debt Resolution Form Engine and checksum-tracked official PDF library. Final official form output, e-file, agency submission, Refund Transfer/refund advance, live sensitive uploads, and guaranteed-result claims remain blocked until real mapping, QA, security, and professional release gates pass.'
   };
 }
 
@@ -505,8 +542,26 @@ function publicCaseSummary(taxCase = {}) {
     consent_status: taxCase.consent_status || '',
     upload_mode: taxCase.upload_mode || '',
     upload_policy_status: taxCase.upload_policy_status || '',
-    customer_status_copy: taxCase.customer_status_copy || buildCustomerStatusCopy(taxCase)
+    customer_status_copy: taxCase.customer_status_copy || buildCustomerStatusCopy(taxCase),
+    unified_start_result: taxCase.unified_start_result || null,
+    intake_summary_type: taxCase.intake_summary_type || '',
+    free_truth_check_confirmed: Boolean(taxCase.free_truth_check_confirmed),
+    initial_amendment_screening_free: Boolean(taxCase.initial_amendment_screening_free),
+    staff_tax_intake_record: taxCase.staff_tax_intake_record || null,
+    save_resume_status: taxCase.save_resume_status || '',
+    last_progress_save_id: taxCase.last_progress_save_id || '',
+    last_progress_saved_at: taxCase.last_progress_saved_at || '',
+    last_progress_section: taxCase.last_progress_section || '',
+    progress_percent: Number(taxCase.progress_percent || 0)
   };
+}
+
+
+function userCanAccessCase(user = {}, taxCase = {}) {
+  if (!user || !taxCase) return false;
+  if (isStaff(user)) return true;
+  const email = String(user.email || '').toLowerCase();
+  return Boolean((taxCase.user_id && taxCase.user_id === user.id) || (email && String(taxCase.email || '').toLowerCase() === email));
 }
 
 function summarizeCaseExtraction(documents = []) {
@@ -529,7 +584,7 @@ app.get('/health', (req, res) => {
     ok: true,
     app: 'Justice Tax Solutions',
     version: APP_VERSION,
-    focus: 'tax problems first, tax returns included, private pilot release-candidate gates, staff cockpit analytics, client journey/service fit, action plans/playbooks, official form upload readiness, document extraction/verification, professional compliance workflow, production configuration gates, encrypted documents, Stripe-ready payments, referrals, QR flyers, release gates, staff SLA, demo-case testing, customer status copy, multi-AI readiness, AI-first official form completion planning, production-security hardening',
+    focus: 'tax filing, business taxes, prior-return review, Free Truth Check, IRS resolution workflows, automated official-form field inventory, and fail-closed per-form operational/security/mapping/review release gates for controlled paid use',
     storage: store.storageSummary(),
     ai_vendors_configured: configuredVendors(),
     io_reference_adapted: true,
@@ -691,6 +746,70 @@ app.get('/api/tax/ai-form-completion-policy', (req, res) => {
 app.get('/api/tax/form-automation-roadmap', (req, res) => {
   res.json({ ok: true, version: APP_VERSION, roadmap: buildAutomationRoadmap() });
 });
+
+function form1040XOutputOptions(body = {}) {
+  return {
+    clientVerified: body.client_verified === true || body.client_verified === 'true',
+    staffReleased: body.staff_released === true || body.staff_released === 'true' || body.professional_released === true || body.professional_released === 'true',
+    productionSensitiveGate: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true',
+    signatureControlsApproved: process.env.FORM_1040X_SIGNATURE_CONTROLS_APPROVED === 'true'
+  };
+}
+
+function register1040XRoutes(routeFormNumber) {
+  app.get(`/api/tax/forms/${routeFormNumber}/official-output-readiness`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, readiness: build1040XOutputReadiness({ store }), source: IRS_1040X_OFFICIAL_SOURCE, policy: IRS_1040X_OUTPUT_POLICY });
+  });
+
+  app.get(`/api/tax/forms/${routeFormNumber}/field-map`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, field_map: build1040XFieldMapReport() });
+  });
+
+  app.get(`/api/tax/forms/${routeFormNumber}/organizer-schema`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, schema: build1040XOrganizerSchema() });
+  });
+
+  app.get(`/api/tax/forms/${routeFormNumber}/sample-cases`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, source: IRS_1040X_OFFICIAL_SOURCE, samples: build1040XSampleCases() });
+  });
+
+  app.post(`/api/tax/forms/${routeFormNumber}/completion-plan`, (req, res) => {
+    const body = req.body || {};
+    const plan = build1040XCompletionPlan(body.answers || body, form1040XOutputOptions(body));
+    store.addEvent('form_1040x_completion_plan_generated', { missing_count: plan.validation.missing.length, error_count: plan.validation.errors.length, release_status: plan.output_gate.current_status }, req);
+    res.status(plan.ok ? 200 : 400).json({ ok: plan.ok, version: APP_VERSION, plan });
+  });
+
+  app.post(`/api/tax/forms/${routeFormNumber}/sample-fill-audit`, (req, res) => {
+    const body = req.body || {};
+    const audit = build1040XSampleFillAudit(body.answers || body, form1040XOutputOptions(body));
+    store.addEvent('form_1040x_sample_fill_audit_generated', { print_ready: Boolean(audit.print_ready), qa_count: audit.qa.length }, req);
+    res.json({ ok: true, version: APP_VERSION, audit });
+  });
+
+  app.post(`/api/tax/forms/${routeFormNumber}/verification-sheet`, (req, res) => {
+    const body = req.body || {};
+    const sheet = build1040XVerificationSheet(body.answers || body, form1040XOutputOptions(body));
+    res.json({ ok: true, version: APP_VERSION, verification_sheet: sheet });
+  });
+
+  app.post(`/api/tax/forms/${routeFormNumber}/draft-pdf`, async (req, res) => {
+    try {
+      const body = req.body || {};
+      const buffer = await create1040XDraftPdfBuffer(body.answers || body, form1040XOutputOptions(body));
+      store.addEvent('form_1040x_draft_pdf_generated', { mode: 'sample_or_internal_draft', byte_length: buffer.length }, req);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="justice-tax-solutions-irs-1040x-amendment-organizer-qa-packet.pdf"');
+      res.send(buffer);
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message });
+    }
+  });
+}
+
+['1040-x', '1040x'].forEach(register1040XRoutes);
+
+
 
 app.get('/api/tax/forms/:formNumber/interview', (req, res) => {
   const answers = parseAnswers(req.query.answers || req.query.sample_answers || {});
@@ -873,6 +992,7 @@ app.post('/api/intake', upload.array('documents', 10), async (req, res) => {
     const user = currentUser(req);
     const lockedReferralCode = normalizeReferralCode((user && user.referred_by_code) || body.referral_code || body.ref || '');
     const analysis = analyzeCase(body);
+    const unifiedStartResult = buildUnifiedIntakeResult(body, analysis);
     const intakeQualityGate = buildIntakeQualityGate(body, req.files || []);
     if (!intakeQualityGate.ok) {
       return res.status(400).json({ ok: false, error: `Required intake item missing: ${intakeQualityGate.issues.map((i) => i.label).join(', ')}`, intake_quality_gate: intakeQualityGate });
@@ -939,6 +1059,11 @@ app.post('/api/intake', upload.array('documents', 10), async (req, res) => {
       language: safeDisplay(body.language || 'English', 60),
       pathway: safeDisplay(body.pathway || 'not-sure', 80),
       selected_tier: safeDisplay(body.selectedTier || body.selected_tier || 'free_starting_point', 80),
+      unified_start_result: unifiedStartResult,
+      intake_summary_type: unifiedStartResult.primary_summary ? unifiedStartResult.primary_summary.title : '',
+      free_truth_check_confirmed: Boolean(unifiedStartResult.free_summary_confirmed),
+      initial_amendment_screening_free: Boolean(unifiedStartResult.initial_amendment_screening_free),
+      staff_tax_intake_record: unifiedStartResult.staff_queue_record,
       primary_concern: safeDisplay(body.primaryConcern || '', 240),
       description: safeDisplay(body.description || '', 3500),
       notice_text: safeDisplay(body.noticeText || '', 3500),
@@ -1092,6 +1217,539 @@ app.post('/api/cases/:id/form-completion-plan/:formNumber', requireUser, (req, r
   res.status(plan.ok ? 200 : 404).json({ ok: plan.ok, version: APP_VERSION, case: publicCaseSummary(updated || c), plan });
 });
 
+
+
+
+
+app.get('/api/platform/refund-efile-bank-product-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, readiness: buildRefundBankProductReadiness(), policy: REFUND_BANK_PRODUCT_POLICY });
+});
+
+app.get('/api/platform/user-experience-refinement', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildExperiencePolishAudit({ store, version: APP_VERSION }) });
+});
+
+app.get('/api/platform/role-based-start-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, start_map: buildRoleBasedStartMap() });
+});
+
+app.get('/api/platform/dashboard-ux-guidance', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, guidance: buildDashboardUxGuidance() });
+});
+
+app.get('/api/platform/staff-ux-guidance', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, guidance: buildStaffUxGuidance({ store }) });
+});
+
+app.get('/api/platform/public-language-safety-matrix', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, matrix: buildPublicLanguageSafetyMatrix() });
+});
+
+app.get('/api/platform/spanish-language-audit', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildSpanishLanguageAudit({ version: APP_VERSION }) });
+});
+
+app.get('/api/platform/spanish-public-start-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, start_map: buildSpanishPublicStartMap() });
+});
+
+app.get('/api/platform/spanish-staff-guidance', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, guidance: buildSpanishStaffGuidance() });
+});
+
+app.get('/api/platform/spanish-marketing-copy-matrix', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, matrix: buildSpanishMarketingCopyMatrix() });
+});
+
+
+
+app.get('/api/platform/full-platform-polish-audit', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildFullPlatformPolishAudit({ version: APP_VERSION }) });
+});
+
+app.get('/api/platform/customer-language-polish-checklist', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, checklist: buildCustomerLanguagePolishChecklist() });
+});
+
+app.get('/api/platform/public-journey-polish-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, map: buildPublicJourneyPolishMap() });
+});
+
+app.get('/api/platform/staff-dashboard-polish-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, map: buildStaffDashboardPolishMap() });
+});
+
+app.get('/api/platform/sitewide-safe-copy-matrix', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, matrix: buildSitewideSafeCopyMatrix() });
+});
+
+
+app.get('/api/platform/non-form-platform-readiness-closeout', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, closeout: buildNonFormPlatformReadinessCloseout({ version: APP_VERSION }) });
+});
+
+app.get('/api/platform/no-more-form-buildout-policy', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, policy: NO_MORE_FORMS_WITHOUT_OFFICIAL_PDF_POLICY });
+});
+
+app.get('/api/platform/official-pdf-intake-infrastructure', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, infrastructure: buildOfficialPdfIntakeInfrastructure({ store }) });
+});
+
+app.get('/api/platform/upload-safety-readiness-audit', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildUploadSafetyReadinessAudit() });
+});
+
+app.get('/api/platform/deployment-readiness-closeout', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, closeout: buildDeploymentReadinessCloseout() });
+});
+
+app.get('/api/platform/spanish-parity-next-polish', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, polish: buildSpanishParityNextPolish() });
+});
+
+
+
+app.get('/api/platform/data-continuity-safeguards', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildDataContinuityAudit({ store, env: process.env }) });
+});
+
+app.get('/api/platform/persistence-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, readiness: buildPersistenceReadiness({ store, env: process.env }) });
+});
+
+app.get('/api/platform/save-resume-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, readiness: buildSaveResumeReadiness({ store }) });
+});
+
+app.get('/api/platform/deployment-data-preservation-checklist', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, checklist: buildDeploymentDataPreservationChecklist({ store, env: process.env }) });
+});
+
+app.get('/api/platform/release-continuity-audit', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildReleaseContinuityAudit({ store, env: process.env }) });
+});
+
+app.get('/api/platform/homepage-stability-rule', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, rule: HOMEPAGE_STABILITY_RULE });
+});
+
+app.get('/api/platform/save-resume-continuity-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, map: SAVE_RESUME_CONTINUITY_MAP });
+});
+
+app.get('/api/platform/deployment-safe-release-gates', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, gates: RELEASE_DATA_PRESERVATION_GATES, sequence: DEPLOYMENT_RELEASE_CHECK_SEQUENCE });
+});
+
+app.get('/api/platform/payment-quote-preservation-checklist', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, checklist: QUOTE_PAYMENT_PRESERVATION });
+});
+
+app.get('/api/professional/work-progress/drafts', requireStaff, (req, res) => {
+  const staffId = (req.staff || {}).id || '';
+  const role = String((req.staff || {}).role || '').toLowerCase();
+  const drafts = store.list('professional_work_drafts', (d) => !d.deleted_at && (role === 'admin' || role === 'owner' || !staffId || d.staff_id === staffId));
+  res.json({ ok: true, version: APP_VERSION, drafts });
+});
+
+app.post('/api/professional/work-progress/drafts', requireStaff, (req, res) => {
+  const payload = buildProfessionalWorkDraftPayload({ staff: req.staff || {}, body: req.body || {} });
+  const draft = store.insert('professional_work_drafts', payload);
+  store.addEvent('professional_work_draft_saved', { draft_id: draft.id, case_id: draft.case_id, workflow: draft.workflow, progress_percent: draft.progress_percent }, req);
+  res.json({ ok: true, version: APP_VERSION, draft, message: 'Professional work draft saved. Staff/accountant/CPA/professional review progress should survive deployments and be resumed from the staff workflow.' });
+});
+
+app.get('/api/staff/release-continuity-board', requireStaff, (req, res) => {
+  res.json({
+    ok: true,
+    version: APP_VERSION,
+    audit: buildReleaseContinuityAudit({ store, env: process.env }),
+    release_checks: store.list('release_integrity_checks').slice(0, 50),
+    quote_payment_checks: store.list('quote_payment_preservation_checks').slice(0, 50),
+    professional_work_drafts: store.list('professional_work_drafts', (d) => !d.deleted_at).slice(0, 50)
+  });
+});
+
+app.post('/api/staff/release-continuity-check', requireStaff, (req, res) => {
+  const result = recordReleaseContinuityCheck({ store, staff: req.staff || {}, body: req.body || {}, req });
+  res.json({ ok: true, version: APP_VERSION, ...result });
+});
+
+app.post('/api/staff/quote-payment-preservation-check', requireStaff, (req, res) => {
+  const record = recordQuotePaymentPreservationCheck({ store, staff: req.staff || {}, body: req.body || {}, req });
+  res.json({ ok: true, version: APP_VERSION, record, checklist: QUOTE_PAYMENT_PRESERVATION });
+});
+
+app.get('/api/work-progress/drafts', requireUser, (req, res) => {
+  const drafts = store.list('work_progress_drafts', (d) => !d.deleted_at && d.user_id === req.user.id);
+  res.json({ ok: true, version: APP_VERSION, drafts: drafts.map(publicDraft) });
+});
+
+app.post('/api/work-progress/drafts', requireUser, (req, res) => {
+  const payload = buildDraftPayload({ user: req.user, body: req.body || {} });
+  const draft = store.insert('work_progress_drafts', payload);
+  store.addEvent('work_progress_draft_saved', { draft_id: draft.id, workflow: draft.workflow, case_id: draft.case_id, progress_percent: draft.progress_percent }, req);
+  res.json({ ok: true, version: APP_VERSION, draft: publicDraft(draft), message: 'Draft progress saved. You can stop and resume from the dashboard without losing what you entered.' });
+});
+
+app.get('/api/work-progress/drafts/:id', requireUser, (req, res) => {
+  const draft = store.find('work_progress_drafts', (d) => d.id === req.params.id && !d.deleted_at && d.user_id === req.user.id);
+  if (!draft) return res.status(404).json({ ok: false, error: 'Draft not found.' });
+  res.json({ ok: true, version: APP_VERSION, draft: publicDraft(draft) });
+});
+
+app.patch('/api/work-progress/drafts/:id', requireUser, (req, res) => {
+  const existing = store.find('work_progress_drafts', (d) => d.id === req.params.id && !d.deleted_at && d.user_id === req.user.id);
+  if (!existing) return res.status(404).json({ ok: false, error: 'Draft not found.' });
+  const payload = buildDraftPayload({ user: req.user, body: req.body || {}, existing });
+  const updated = store.update('work_progress_drafts', existing.id, payload);
+  store.addEvent('work_progress_draft_updated', { draft_id: updated.id, workflow: updated.workflow, case_id: updated.case_id, progress_percent: updated.progress_percent }, req);
+  res.json({ ok: true, version: APP_VERSION, draft: publicDraft(updated), message: 'Draft progress updated.' });
+});
+
+app.post('/api/cases/:id/progress-save', requireUser, (req, res) => {
+  const c = store.find('cases', (item) => item.id === req.params.id && !item.deleted_at);
+  if (!c || !userCanAccessCase(req.user, c)) return res.status(404).json({ ok: false, error: 'Case not found.' });
+  const draftPayload = buildDraftPayload({ user: req.user, body: { ...(req.body || {}), case_id: c.id, workflow: (req.body && req.body.workflow) || c.pathway || 'case-progress' } });
+  const progress = store.insert('case_progress_saves', {
+    ...draftPayload,
+    case_id: c.id,
+    case_status_at_save: c.status || '',
+    payment_status_at_save: c.payment_status || '',
+    assigned_professional_id_at_save: c.assigned_professional_id || ''
+  });
+  const caseProgress = {
+    last_progress_save_id: progress.id,
+    last_progress_saved_at: progress.last_saved_at,
+    last_progress_section: progress.last_completed_section,
+    progress_percent: progress.progress_percent,
+    save_resume_status: 'saved_resume_available'
+  };
+  const updated = store.update('cases', c.id, caseProgress);
+  store.addEvent('case_progress_saved', { case_id: c.id, progress_id: progress.id, workflow: progress.workflow, progress_percent: progress.progress_percent }, req);
+  res.json({ ok: true, version: APP_VERSION, progress: publicDraft(progress), case: publicCaseSummary(updated), message: 'Case progress saved. The user, staff, and assigned professionals should be able to resume this work after a pause or deployment.' });
+});
+
+app.post('/api/staff/deployment-data-check', requireStaff, (req, res) => {
+  const readiness = buildPersistenceReadiness({ store, env: process.env });
+  const check = store.insert('deployment_data_checks', {
+    actor_id: req.staff.id,
+    actor_role: req.staff.role || 'staff',
+    status: String((req.body && req.body.status) || 'recorded').slice(0, 80),
+    release_version: APP_VERSION,
+    note: String((req.body && req.body.note) || '').slice(0, 1000),
+    readiness
+  });
+  store.addEvent('deployment_data_check_recorded', { check_id: check.id, status: check.status, managed_database_configured: readiness.managed_database_configured, secure_object_storage_configured: readiness.secure_object_storage_configured }, req);
+  res.json({ ok: true, version: APP_VERSION, check, readiness });
+});
+
+app.get('/api/platform/continuity-polish-audit', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildContinuityPolishAudit({ version: APP_VERSION }) });
+});
+
+app.get('/api/platform/customer-flow-quality-gate', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, quality_gate: CUSTOMER_FLOW_QUALITY_GATE });
+});
+
+app.get('/api/platform/staff-daily-operating-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, operating_map: STAFF_DAILY_OPERATING_MAP });
+});
+
+app.get('/api/platform/pricing-message-alignment', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, pricing_alignment: PRICING_MESSAGE_ALIGNMENT });
+});
+
+app.get('/api/platform/spanish-parity-action-plan', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, spanish_parity: SPANISH_PARITY_ACTION_PLAN });
+});
+
+app.get('/api/platform/marketing-safety-review', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, marketing_safety: MARKETING_SAFETY_REVIEW });
+});
+
+app.get('/api/platform/official-pdf-readiness-ladder', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, readiness_ladder: OFFICIAL_PDF_READINESS_LADDER });
+});
+
+app.get('/api/platform/deployment-smoke-test-plan', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, smoke_test_plan: DEPLOYMENT_SMOKE_TEST_PLAN });
+});
+
+app.get('/api/platform/prior-return-review-marketing-audit', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildPriorReturnReviewMarketingAudit(), feature: PRIOR_RETURN_REVIEW_MARKETING });
+});
+
+app.get('/api/platform/prior-return-review-marketing-copy', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, copy: buildPriorReturnReviewMarketingCopy() });
+});
+
+app.get('/api/platform/prior-return-review-dashboard-guidance', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, guidance: buildPriorReturnReviewDashboardGuidance() });
+});
+
+app.get('/api/platform/public-start-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, start_map: buildPublicStartMap() });
+});
+
+app.get('/api/platform/unified-start-readiness-audit', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, audit: buildUnifiedStartReadinessAudit() });
+});
+
+app.post('/api/tax/personal-filing-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, summary: buildPersonalFilingReadiness(req.body || {}) });
+});
+
+app.post('/api/tax/business-filing-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, summary: buildBusinessFilingReadiness(req.body || {}) });
+});
+
+app.post('/api/tax/prior-year-amendment-opportunity', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, summary: buildAmendmentOpportunitySummary(req.body || {}) });
+});
+
+app.post('/api/tax/free-truth-check-summary', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, summary: buildTruthCheckSummary(req.body || {}) });
+});
+
+app.post('/api/staff/tax-intake-queue-preview', requireStaff, (req, res) => {
+  const analysis = analyzeCase(req.body || {});
+  res.json({ ok: true, version: APP_VERSION, queue_record: buildStaffQueueRecord(req.body || {}, analysis) });
+});
+
+
+
+function appealsAbatementOutputOptions(body = {}) {
+  return {
+    official_pdf_qa_passed: body.official_pdf_qa_passed === true || body.official_pdf_qa_passed === 'true',
+    client_values_verified: body.client_values_verified === true || body.client_values_verified === 'true',
+    professional_release_recorded: body.professional_release_recorded === true || body.professional_release_recorded === 'true',
+    staff_final_release_approved: body.staff_final_release_approved === true || body.staff_final_release_approved === 'true',
+    production_sensitive_gate_passed: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true'
+  };
+}
+
+function registerAppealsAbatementRoutes(formNumber) {
+  app.get(`/api/tax/forms/${formNumber}/official-output-readiness`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, readiness: buildAppealsAbatementOutputReadiness(formNumber, { store }), source: IRS_APPEALS_ABATEMENT_SOURCES[formNumber], policy: APPEALS_ABATEMENT_POLICY });
+  });
+
+  app.get(`/api/tax/forms/${formNumber}/field-map`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, field_map: buildAppealsAbatementFieldMapReport(formNumber) });
+  });
+
+  app.get(`/api/tax/forms/${formNumber}/organizer-schema`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, schema: buildAppealsAbatementOrganizerSchema(formNumber) });
+  });
+
+  app.get(`/api/tax/forms/${formNumber}/sample-cases`, (req, res) => {
+    res.json({ ok: true, version: APP_VERSION, samples: buildAppealsAbatementSampleCases(formNumber) });
+  });
+
+  app.post(`/api/tax/forms/${formNumber}/completion-plan`, (req, res) => {
+    const body = req.body || {};
+    const plan = buildAppealsAbatementCompletionPlan(formNumber, body.answers || body, appealsAbatementOutputOptions(body));
+    store.addEvent(`form_${formNumber}_completion_plan_generated`, { missing_count: plan.validation.missing.length, error_count: plan.validation.errors.length, release_status: plan.output_gate.current_status }, req);
+    res.json({ ok: true, version: APP_VERSION, plan });
+  });
+
+  app.post(`/api/tax/forms/${formNumber}/sample-fill-audit`, (req, res) => {
+    const body = req.body || {};
+    const audit = buildAppealsAbatementSampleFillAudit(formNumber, body.answers || body, appealsAbatementOutputOptions(body));
+    store.addEvent(`form_${formNumber}_sample_fill_audit_generated`, { print_ready: Boolean(audit.print_ready), qa_count: audit.qa.length }, req);
+    res.json({ ok: true, version: APP_VERSION, audit });
+  });
+
+  app.post(`/api/tax/forms/${formNumber}/verification-sheet`, (req, res) => {
+    const body = req.body || {};
+    const sheet = buildAppealsAbatementVerificationSheet(formNumber, body.answers || body, appealsAbatementOutputOptions(body));
+    res.json({ ok: true, version: APP_VERSION, verification_sheet: sheet });
+  });
+
+  app.post(`/api/tax/forms/${formNumber}/draft-pdf`, async (req, res) => {
+    try {
+      const body = req.body || {};
+      const buffer = await createAppealsAbatementDraftPdfBuffer(formNumber, body.answers || body, appealsAbatementOutputOptions(body));
+      store.addEvent(`form_${formNumber}_draft_pdf_generated`, { mode: 'sample_or_internal_draft', byte_length: buffer.length }, req);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="justice-tax-solutions-irs-${formNumber}-organizer-qa-packet.pdf"`);
+      res.send(buffer);
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message });
+    }
+  });
+}
+
+['843', '9423', '12153'].forEach(registerAppealsAbatementRoutes);
+
+function authOutputOptions(body = {}) {
+  return {
+    clientVerified: body.client_verified === true || body.client_verified === 'true',
+    staffReleased: body.staff_released === true || body.staff_released === 'true' || body.professional_released === true || body.professional_released === 'true',
+    productionSensitiveGate: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true',
+    signatureControlsApproved: process.env.AUTHORIZATION_SIGNATURE_CONTROLS_APPROVED === 'true'
+  };
+}
+
+app.get('/api/tax/forms/2848/official-output-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, readiness: buildAuthorizationOutputReadiness('2848', { store }), source: IRS_AUTHORIZATION_SOURCES['2848'], policy: AUTHORIZATION_OUTPUT_POLICY });
+});
+
+app.get('/api/tax/forms/2848/field-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, field_map: buildAuthorizationFieldMapReport('2848') });
+});
+
+app.get('/api/tax/forms/2848/organizer-schema', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, schema: buildAuthorizationOrganizerSchema('2848') });
+});
+
+app.get('/api/tax/forms/2848/sample-cases', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, samples: buildAuthorizationSampleCases('2848') });
+});
+
+app.post('/api/tax/forms/2848/completion-plan', (req, res) => {
+  const body = req.body || {};
+  const plan = buildAuthorizationCompletionPlan('2848', body.answers || body, authOutputOptions(body));
+  store.addEvent('form_2848_completion_plan_generated', { missing_count: plan.validation.missing.length, error_count: plan.validation.errors.length, release_status: plan.output_gate.current_status }, req);
+  res.json({ ok: true, version: APP_VERSION, plan });
+});
+
+app.post('/api/tax/forms/2848/sample-fill-audit', (req, res) => {
+  const body = req.body || {};
+  const audit = buildAuthorizationSampleFillAudit('2848', body.answers || body, authOutputOptions(body));
+  store.addEvent('form_2848_sample_fill_audit_generated', { print_ready: Boolean(audit.print_ready), qa_count: audit.qa.length }, req);
+  res.json({ ok: true, version: APP_VERSION, audit });
+});
+
+app.post('/api/tax/forms/2848/verification-sheet', (req, res) => {
+  const body = req.body || {};
+  const sheet = buildAuthorizationVerificationSheet('2848', body.answers || body, authOutputOptions(body));
+  res.json({ ok: true, version: APP_VERSION, verification_sheet: sheet });
+});
+
+app.post('/api/tax/forms/2848/draft-pdf', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const buffer = await createAuthorizationDraftPdfBuffer('2848', body.answers || body, authOutputOptions(body));
+    store.addEvent('form_2848_draft_pdf_generated', { mode: 'sample_or_internal_draft', byte_length: buffer.length }, req);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="justice-tax-solutions-irs-2848-organizer-qa-packet.pdf"');
+    res.send(buffer);
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get('/api/tax/forms/8821/official-output-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, readiness: buildAuthorizationOutputReadiness('8821', { store }), source: IRS_AUTHORIZATION_SOURCES['8821'], policy: AUTHORIZATION_OUTPUT_POLICY });
+});
+
+app.get('/api/tax/forms/8821/field-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, field_map: buildAuthorizationFieldMapReport('8821') });
+});
+
+app.get('/api/tax/forms/8821/organizer-schema', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, schema: buildAuthorizationOrganizerSchema('8821') });
+});
+
+app.get('/api/tax/forms/8821/sample-cases', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, samples: buildAuthorizationSampleCases('8821') });
+});
+
+app.post('/api/tax/forms/8821/completion-plan', (req, res) => {
+  const body = req.body || {};
+  const plan = buildAuthorizationCompletionPlan('8821', body.answers || body, authOutputOptions(body));
+  store.addEvent('form_8821_completion_plan_generated', { missing_count: plan.validation.missing.length, error_count: plan.validation.errors.length, release_status: plan.output_gate.current_status }, req);
+  res.json({ ok: true, version: APP_VERSION, plan });
+});
+
+app.post('/api/tax/forms/8821/sample-fill-audit', (req, res) => {
+  const body = req.body || {};
+  const audit = buildAuthorizationSampleFillAudit('8821', body.answers || body, authOutputOptions(body));
+  store.addEvent('form_8821_sample_fill_audit_generated', { print_ready: Boolean(audit.print_ready), qa_count: audit.qa.length }, req);
+  res.json({ ok: true, version: APP_VERSION, audit });
+});
+
+app.post('/api/tax/forms/8821/verification-sheet', (req, res) => {
+  const body = req.body || {};
+  const sheet = buildAuthorizationVerificationSheet('8821', body.answers || body, authOutputOptions(body));
+  res.json({ ok: true, version: APP_VERSION, verification_sheet: sheet });
+});
+
+app.post('/api/tax/forms/8821/draft-pdf', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const buffer = await createAuthorizationDraftPdfBuffer('8821', body.answers || body, authOutputOptions(body));
+    store.addEvent('form_8821_draft_pdf_generated', { mode: 'sample_or_internal_draft', byte_length: buffer.length }, req);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="justice-tax-solutions-irs-8821-organizer-qa-packet.pdf"');
+    res.send(buffer);
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get('/api/tax/forms/433-f/official-output-readiness', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, readiness: build433FOutputReadiness({ store }), source: IRS_433F_OFFICIAL_SOURCE, policy: IRS_433F_OUTPUT_POLICY });
+});
+
+app.get('/api/tax/forms/433-f/field-map', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, field_map: build433FFieldMapReport() });
+});
+
+app.get('/api/tax/forms/433-f/organizer-schema', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, schema: build433FOrganizerSchema() });
+});
+
+app.get('/api/tax/forms/433-f/sample-cases', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, samples: build433FSampleCases() });
+});
+
+app.post('/api/tax/forms/433-f/completion-plan', (req, res) => {
+  const body = req.body || {};
+  const sourceRecord = body.source_record_id ? store.find('official_form_sources', (src) => src.id === body.source_record_id && !src.deleted_at) : null;
+  const officialForm = body.official_form_id ? store.find('official_forms', (form) => form.id === body.official_form_id && !form.deleted_at) : null;
+  const plan = build433FCompletionPlan(body.answers || body, { sourceRecord, officialForm, clientVerified: body.client_verified === true || body.client_verified === 'true', professionalReleased: body.professional_released === true || body.professional_released === 'true', productionSensitiveGate: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true' });
+  store.addEvent('form_433f_completion_plan_generated', { organizer_complete: Boolean(plan.organizer_status && plan.organizer_status.client_can_complete_organizer_now), missing_count: plan.validation ? plan.validation.missing.length : 0, official_client_output_allowed: Boolean(plan.output_gate && plan.output_gate.official_client_output_allowed) }, req);
+  res.status(plan.ok ? 200 : 400).json({ ok: plan.ok, version: APP_VERSION, plan });
+});
+
+app.post('/api/tax/forms/433-f/sample-fill-audit', (req, res) => {
+  const body = req.body || {};
+  const audit = build433FSampleFillAudit(body.answers || body, { clientVerified: body.client_verified === true || body.client_verified === 'true', professionalReleased: body.professional_released === true || body.professional_released === 'true', productionSensitiveGate: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true' });
+  store.addEvent('form_433f_sample_fill_audit_generated', { print_ready: Boolean(audit.print_ready), qa_count: audit.qa.length }, req);
+  res.json({ ok: true, version: APP_VERSION, audit });
+});
+
+app.post('/api/tax/forms/433-f/verification-sheet', (req, res) => {
+  const body = req.body || {};
+  const sheet = build433FVerificationSheet(body.answers || body, { clientVerified: body.client_verified === true || body.client_verified === 'true', professionalReleased: body.professional_released === true || body.professional_released === 'true', productionSensitiveGate: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true' });
+  res.json({ ok: true, version: APP_VERSION, verification_sheet: sheet });
+});
+
+app.post('/api/tax/forms/433-f/draft-pdf', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const answers = body.answers || body;
+    const buffer = await create433FDraftPdfBuffer(answers, { clientVerified: body.client_verified === true || body.client_verified === 'true', professionalReleased: body.professional_released === true || body.professional_released === 'true', productionSensitiveGate: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true' });
+    store.addEvent('form_433f_draft_pdf_generated', { mode: 'organizer_or_internal_qa_packet', byte_length: buffer.length }, req);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="justice-tax-solutions-irs-433-f-organizer-qa-packet.pdf"');
+    res.send(buffer);
+  } catch (error) {
+    res.status(400).json({ ok: false, version: APP_VERSION, error: error.message });
+  }
+});
+
+app.get('/api/cases/:id/forms/433-f/verification-sheet', requireUser, (req, res) => {
+  const c = store.find('cases', (item) => item.id === req.params.id && !item.deleted_at);
+  if (!c || (c.user_id && c.user_id !== req.user.id && !isStaff(req.user))) return res.status(404).json({ ok: false, error: 'Case not found.' });
+  const answers = c.form_answers && c.form_answers['433-F'] ? c.form_answers['433-F'] : (c.form_answers || c.intake_answers || {});
+  const sheet = build433FVerificationSheet(answers, { productionSensitiveGate: process.env.ALLOW_LIVE_SENSITIVE_UPLOADS === 'true' && process.env.ACCEPT_LIVE_SENSITIVE_DOCUMENTS === 'true' });
+  store.addEvent('case_433f_verification_sheet_viewed', { case_id: c.id, blocked_count: sheet.blocked_reasons.length }, req);
+  res.json({ ok: true, version: APP_VERSION, case: publicCaseSummary(c), verification_sheet: sheet });
+});
 
 app.get('/api/tax/forms/9465/official-output-readiness', (req, res) => {
   res.json({ ok: true, version: APP_VERSION, readiness: build9465OutputReadiness({ store }), source: IRS_9465_OFFICIAL_SOURCE, policy: IRS_9465_OUTPUT_POLICY });
@@ -2258,6 +2916,61 @@ app.get('/api/platform/private-pilot-regression-checklist', (req, res) => res.js
 app.get('/api/platform/private-pilot-scenario-matrix', (req, res) => res.json({ ok: true, version: APP_VERSION, scenarios: buildPilotUserScenarioMatrix() }));
 app.get('/api/platform/compliance-copy-audit', (req, res) => res.json({ ok: true, version: APP_VERSION, audit: buildComplianceCopyAudit() }));
 app.get('/api/platform/pilot-marketing-safety-review', (req, res) => res.json({ ok: true, version: APP_VERSION, review: buildPilotMarketingSafetyReview({ store }) }));
+app.get('/api/platform/public-launch-audit', (req, res) => res.json({ ok: true, version: APP_VERSION, audit: buildPublicLaunchAudit({ store }) }));
+app.get('/api/platform/public-launch-action-plan', (req, res) => res.json({ ok: true, version: APP_VERSION, action_plan: buildPublicLaunchActionPlan({ store }) }));
+app.get('/api/platform/public-launch-completion-audit', (req, res) => res.json({ ok: true, version: APP_VERSION, audit: buildPublicLaunchCompletionAudit({ store }) }));
+app.get('/api/tax/tax-notice-next-step-guide', (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildTaxNoticeNextStepGuide(req.query || {}) }));
+app.get('/api/tax/taxpayer-action-center', (req, res) => res.json({ ok: true, version: APP_VERSION, action_center: buildTaxpayerActionCenter() }));
+app.get('/api/tax/document-safety-center', (req, res) => res.json({ ok: true, version: APP_VERSION, document_safety_center: buildDocumentSafetyCenter() }));
+app.get('/api/platform/public-launch-closeout-plan', (req, res) => res.json({ ok: true, version: APP_VERSION, closeout_plan: buildPublicLaunchCloseoutPlan() }));
+app.post('/api/tax/review-level-self-check', (req, res) => res.json({ ok: true, version: APP_VERSION, self_check: buildReviewLevelSelfCheck(req.body || {}) }));
+app.get('/api/tax/urgency-triage-guide', (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildTaxUrgencyTriageGuide() }));
+app.post('/api/tax/urgency-triage', (req, res) => res.json({ ok: true, version: APP_VERSION, triage: buildTaxUrgencyTriage(req.body || {}) }));
+app.get('/api/platform/public-launch-roadmap', (req, res) => res.json({ ok: true, version: APP_VERSION, roadmap: buildPublicLaunchRoadmap() }));
+app.get('/api/platform/owner-public-launch-checklist', (req, res) => res.json({ ok: true, version: APP_VERSION, checklist: buildOwnerPublicLaunchChecklist() }));
+app.get('/api/platform/real-user-launch-readiness', (req, res) => res.json({ ok: true, version: APP_VERSION, readiness: buildRealUserLaunchReadiness() }));
+app.get('/api/platform/first-real-user-operating-plan', (req, res) => res.json({ ok: true, version: APP_VERSION, operating_plan: buildFirstRealUserOperatingPlan() }));
+app.post('/api/tax/real-user-safety-check', (req, res) => res.json({ ok: true, version: APP_VERSION, safety_check: buildRealUserSafetyCheck(req.body || {}) }));
+app.get('/api/platform/real-user-go-live-gate', (req, res) => res.json({ ok: true, version: APP_VERSION, gate: buildRealUserGoLiveGate() }));
+app.get('/api/platform/launch-day-runbook', (req, res) => res.json({ ok: true, version: APP_VERSION, runbook: buildLaunchDayRunbook() }));
+app.get('/api/tax/first-public-user-start-guide', (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildFirstPublicUserStartGuide() }));
+app.post('/api/tax/pre-submit-real-user-check', (req, res) => res.json({ ok: true, version: APP_VERSION, check: buildPreSubmitRealUserCheck(req.body || {}) }));
+app.get('/api/tax/safe-tax-summary-builder-guide', (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildSafeTaxSummaryBuilderGuide() }));
+app.post('/api/tax/safe-tax-summary', (req, res) => res.json({ ok: true, version: APP_VERSION, summary: buildSafeTaxSummary(req.body || {}) }));
+app.get('/api/platform/public-launch-final-readiness-checklist', (req, res) => res.json({ ok: true, version: APP_VERSION, checklist: buildPublicLaunchFinalReadinessChecklist() }));
+app.get('/api/tax/after-you-start-guide', (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildAfterYouStartGuide() }));
+app.post('/api/tax/post-submit-expectation-check', (req, res) => res.json({ ok: true, version: APP_VERSION, check: buildPostSubmitExpectationCheck(req.body || {}) }));
+app.get('/api/staff/first-case-followup-board', requireStaff, (req, res) => res.json({ ok: true, version: APP_VERSION, board: buildFirstCaseFollowupBoard({ store }) }));
+app.get('/api/tax/first-user-feedback-guide', (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildFirstUserFeedbackGuide() }));
+app.post('/api/tax/first-user-feedback', (req, res) => {
+  const feedback = buildFirstUserFeedbackRecord(req.body || {});
+  const record = store.insert('first_user_feedback', feedback);
+  store.addEvent('first_user_feedback_received', {
+    feedback_id: record.id,
+    lane: record.lane,
+    sensitive_data_attempt: record.sensitive_data_attempt,
+    urgent_or_high_risk_signal: record.urgent_or_high_risk_signal,
+    government_or_law_firm_confusion: record.government_or_law_firm_confusion,
+    final_action_confusion: record.final_action_confusion
+  }, req);
+  res.json({ ok: true, version: APP_VERSION, feedback: record, guide: buildFirstUserFeedbackGuide() });
+});
+app.get('/api/staff/first-user-feedback-board', requireStaff, (req, res) => res.json({ ok: true, version: APP_VERSION, board: buildFirstUserFeedbackBoard({ store }) }));
+
+app.get('/api/platform/final-controlled-launch-closeout', (req, res) => res.json({ ok: true, version: APP_VERSION, closeout: buildFinalControlledPublicLaunchCloseout({ store, env: process.env }) }));
+app.get('/api/platform/deployment-preparation-checklist', (req, res) => res.json({ ok: true, version: APP_VERSION, checklist: buildDeploymentPreparationChecklist(process.env) }));
+app.get('/api/platform/public-navigation-audit', (req, res) => res.json({ ok: true, version: APP_VERSION, audit: buildPublicNavigationAudit() }));
+app.get('/api/platform/compliance-source-freshness', (req, res) => res.json({ ok: true, version: APP_VERSION, sources: buildComplianceSourceFreshness() }));
+app.get('/api/platform/privacy-safe-analytics-audit', (req, res) => res.json({ ok: true, version: APP_VERSION, audit: buildPrivacySafeAnalyticsAudit() }));
+app.get('/api/platform/first-cohort-operating-guide', (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildFirstCohortStaffOperatingGuide({ store }) }));
+app.get('/api/staff/first-cohort-operating-guide', requireStaff, (req, res) => res.json({ ok: true, version: APP_VERSION, guide: buildFirstCohortStaffOperatingGuide({ store }) }));
+
+app.get('/api/platform/user-value-polish-plan', (req, res) => res.json({ ok: true, version: APP_VERSION, plan: buildUserValuePolishPlan({ store }) }));
+app.get('/api/platform/launch-conversion-checklist', (req, res) => res.json({ ok: true, version: APP_VERSION, checklist: buildLaunchConversionChecklist(), trust_and_safety_copy: buildTrustAndSafetyCopyMatrix() }));
+app.get('/api/platform/version-packaging-audit', (req, res) => res.json({ ok: true, version: APP_VERSION, audit: buildVersionPackagingAudit() }));
+app.get('/api/platform/staff-public-separation-audit', (req, res) => res.json({ ok: true, version: APP_VERSION, audit: buildStaffPublicSeparationAudit() }));
+app.get('/api/staff/public-launch-control-room', requireStaff, (req, res) => res.json({ ok: true, version: APP_VERSION, control_room: buildStaffPublicLaunchControlRoom({ store }) }));
+app.post('/api/staff/public-launch-decision', requireStaff, (req, res) => { const decision = recordPublicLaunchDecision({ store, body: req.body || {}, user: req.user }); store.addEvent('public_launch_decision_recorded', { decision_id: decision.id, status: decision.status, scope: decision.scope }, req); res.json({ ok: true, version: APP_VERSION, decision }); });
 app.get('/api/staff/private-pilot-release-packet', requireStaff, (req, res) => res.json({ ok: true, version: APP_VERSION, packet: buildPilotReleasePacket({ store, reports: pilotReleaseReports() }) }));
 app.post('/api/staff/private-pilot-release-decision', requireStaff, (req, res) => {
   const user = currentUser(req) || { id: 'admin-token', email: 'staff/admin token' };
@@ -2362,6 +3075,30 @@ app.get('/api/tax/official-forms', (req, res) => {
 app.get('/api/tax/official-form-roadmap', (req, res) => {
   const forms = store.list('official_forms', (form) => !form.deleted_at);
   res.json({ ok: true, version: APP_VERSION, waves: FIRST_FORM_WAVES, uploaded_summary: formPrioritySummary(forms), mapping_policy: FIELD_MAPPING_POLICY, next_best_uploads: uploadReadinessGuide().what_to_upload_now });
+});
+
+
+app.post('/api/admin/official-form-pdfs', adminGuard, upload.array('pdfs', 10), (req, res) => {
+  const files = req.files || [];
+  const options = {
+    agency: safeDisplay(req.body.agency || '', 20).toUpperCase(),
+    taxYear: safeDisplay(req.body.tax_year || '', 12),
+    sourceUrl: safeDisplay(req.body.source_url || '', 500),
+    notes: safeDisplay(req.body.notes || '', 1000),
+    packageName: safeDisplay(req.body.package_name || '', 180),
+    uploadedByUserId: 'admin-token'
+  };
+  try {
+    const result = ingestOfficialPdfUploads(store, files, options);
+    if (!result.ok) return res.status(400).json({ ok: false, version: APP_VERSION, error: result.error, skipped: result.skipped || [] });
+    for (const form of result.forms || []) {
+      store.addEvent('official_form_pdf_ingested', { official_form_id: form.id, agency: form.agency, form_number: form.form_number, tax_year: form.tax_year, sha256: form.sha256, client_output_allowed: false }, req);
+    }
+    res.json({ ok: true, version: APP_VERSION, result, mapping_queue_count: mappingQueue(store).length });
+  } catch (error) {
+    store.addEvent('official_form_pdf_ingestion_error', { message: error.message }, req);
+    res.status(400).json({ ok: false, version: APP_VERSION, error: error.message });
+  }
 });
 
 app.post('/api/admin/official-form-zips', adminGuard, upload.array('archives', 10), (req, res) => {
@@ -2978,7 +3715,149 @@ app.get('/api/staff/export/:type', requireStaff, (req, res) => {
 app.get('/dashboard.html', (req, res, next) => next());
 app.get('/start.html', (req, res) => res.redirect(302, '/#start'));
 
+
+// v0.1.68 IRS Tax Debt Resolution Form Engine — controlled Phase 1.
+app.get('/api/tax/irs-resolution/form-library', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, engine_version: IRS_RESOLUTION_ENGINE_VERSION, library: buildIrsResolutionLibrarySummary() });
+});
+
+app.get('/api/tax/irs-resolution/questionnaire', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, questionnaire: IRS_RESOLUTION_QUESTIONNAIRE, safety: 'Guided screening only; no IRS approval, filing, settlement, or eligibility result is guaranteed.' });
+});
+
+app.post('/api/tax/irs-resolution/recommendation', (req, res) => {
+  const recommendation = recommendResolutionPath((req.body || {}).answers || req.body || {});
+  store.addEvent('irs_resolution_form_recommendation_generated', { lanes: recommendation.lanes, forms: recommendation.recommendedForms.map((f) => f.formNumber), required_review: recommendation.requiredReview }, req);
+  res.json({ ok: true, version: APP_VERSION, recommendation });
+});
+
+app.post('/api/staff/irs-resolution/mapping-record', requireStaff, (req, res) => {
+  const mapping = createIrsResolutionMappingRecord(req.body || {});
+  const record = store.insert('official_form_mapping_records', { id: `map_${uuidv4()}`, ...mapping, created_by: (req.staff || req.user || {}).id || null });
+  store.addEvent('irs_resolution_mapping_record_created', { form_number: record.formNumber, question_id: record.questionId, status: record.status }, req);
+  res.json({ ok: true, version: APP_VERSION, mapping: record });
+});
+
+app.get('/api/staff/irs-resolution/forms/:formNumber/qa-checklist', requireStaff, (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, checklist: buildIrsResolutionQaChecklist(req.params.formNumber) });
+});
+
+// v0.1.69 operational, security, mapping, review and paid-use gates.
+app.get('/api/tax/official-forms/field-inventory', (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, release_engine_version: OFFICIAL_RELEASE_VERSION, inventory: summarizeFieldInventory() });
+});
+
+app.get('/api/staff/official-forms/release-checks', requireStaff, (req, res) => {
+  res.json({ ok: true, version: APP_VERSION, checks: OFFICIAL_RELEASE_CHECKS, policy: 'Every check is required for each language/revision before a form can be sold as controlled print-ready official output.' });
+});
+
+app.post('/api/staff/official-forms/release-gate', requireStaff, (req, res) => {
+  const gate = normalizeGateRecord(req.body || {});
+  if (!gate.formNumber) return res.status(400).json({ ok: false, error: 'formNumber is required.' });
+  const security = buildProductionSecurityReadiness({ store, env: process.env });
+  const evaluation = evaluateFormRelease(gate, security);
+  const record = store.insert('official_form_release_gates', { id: `ofrg_${uuidv4()}`, ...gate, evaluation, created_by: (req.staff || req.user || {}).id || null });
+  store.addEvent('official_form_release_gate_recorded', { form_number: gate.formNumber, language: gate.language, paid_controlled_use_allowed: evaluation.paidControlledUseAllowed, missing_check_count: evaluation.missingChecks.length }, req);
+  res.json({ ok: true, version: APP_VERSION, gate: record, evaluation });
+});
+
+app.get('/api/staff/official-forms/:formNumber/release-status', requireStaff, (req, res) => {
+  const formNumber = String(req.params.formNumber || '').trim();
+  const records = store.list('official_form_release_gates', (r) => String(r.formNumber) === formNumber);
+  const latest = records[0] || { formNumber, checks: {}, mappingCoveragePercent: 0 };
+  const security = buildProductionSecurityReadiness({ store, env: process.env });
+  res.json({ ok: true, version: APP_VERSION, latest, evaluation: evaluateFormRelease(latest, security), security });
+});
+
+app.post('/api/staff/official-forms/paid-pilot-case', requireStaff, (req, res) => {
+  const formNumber = String((req.body || {}).formNumber || '').trim();
+  if (!formNumber) return res.status(400).json({ ok: false, error: 'formNumber is required.' });
+  const latest = store.list('official_form_release_gates', (r) => String(r.formNumber) === formNumber)[0] || { formNumber, checks: {}, mappingCoveragePercent: 0 };
+  const security = buildProductionSecurityReadiness({ store, env: process.env });
+  const evaluation = evaluateFormRelease(latest, security);
+  const pilot = buildPaidPilotCase(req.body || {}, evaluation);
+  const record = store.insert('official_form_paid_pilot_cases', pilot);
+  store.addEvent('official_form_paid_pilot_case_created', { form_number: formNumber, release_status: record.releaseStatus, quoted_amount_cents: record.quotedAmountCents }, req);
+  res.status(evaluation.paidControlledUseAllowed ? 201 : 409).json({ ok: evaluation.paidControlledUseAllowed, version: APP_VERSION, pilot: record, evaluation });
+});
+
+
+// v0.1.70 production operational evidence and form-approval control center.
+app.get('/api/staff/production-operational-gates', requireStaff, (req, res) => {
+  const records = store.list('production_operational_evidence');
+  res.json({ ok:true, version:APP_VERSION, gate_version:OPERATIONAL_GATE_VERSION, controls:EXTERNAL_CONTROLS, evaluation:evaluateOperationalLaunch({records,env:process.env}) });
+});
+app.post('/api/admin/production-operational-gates/evidence', adminGuard, (req, res) => {
+  const evidence=normalizeOperationalEvidence(req.body||{});
+  if(!EXTERNAL_CONTROLS.some(c=>c.key===evidence.controlKey)) return res.status(400).json({ok:false,error:'Unknown controlKey.'});
+  if(evidence.status==='complete' && (!evidence.evidenceReference || !evidence.approvedBy)) return res.status(400).json({ok:false,error:'Completed controls require evidenceReference and approvedBy.'});
+  const record=store.insert('production_operational_evidence',{id:`poe_${uuidv4()}`,...evidence,created_by:(req.staff||req.user||{}).id||null});
+  store.addEvent('production_operational_evidence_recorded',{control_key:record.controlKey,status:record.status},req);
+  res.json({ok:true,version:APP_VERSION,evidence:record,evaluation:evaluateOperationalLaunch({records:store.list('production_operational_evidence'),env:process.env})});
+});
+app.get('/api/staff/official-forms/semantic-mapping-summary', requireStaff, (req,res)=>res.json({ok:true,version:APP_VERSION,summary:buildSemanticMappingSummary()}));
+app.get('/api/staff/official-forms/sample-visual-qa-summary', requireStaff, (req,res)=>res.json({ok:true,version:APP_VERSION,summary:buildSampleQaSummary()}));
+
+
+// v0.1.72 IRS Individual Income Tax Form Engine and first controlled filing lane.
+app.get('/api/tax/individual-forms/library', (req,res)=>res.json({ok:true,version:APP_VERSION,engine_version:INDIVIDUAL_ENGINE_VERSION,library:buildIndividualTaxFormSummary()}));
+app.get('/api/tax/individual-forms/questionnaire', (req,res)=>res.json({ok:true,version:APP_VERSION,questionnaire:INDIVIDUAL_TAX_QUESTIONS,safety:'Guided screening only; filing, refund, acceptance, and tax outcomes are not guaranteed.'}));
+app.post('/api/tax/individual-forms/recommendation', (req,res)=>{const recommendation=recommendIndividualTaxForms((req.body||{}).answers||req.body||{}); store.addEvent('individual_tax_form_recommendation_generated',{forms:recommendation.recommendedForms.map(f=>f.formNumber)},req); res.json({ok:true,version:APP_VERSION,recommendation});});
+app.get('/api/staff/individual-forms/field-inventory', requireStaff, (req,res)=>{const file=path.join(__dirname,'assets','official-forms','irs-individual-income-tax','field-inventory.json'); res.json({ok:true,version:APP_VERSION,inventory:JSON.parse(fs.readFileSync(file,'utf8'))});});
+app.get('/api/staff/individual-forms/semantic-mapping-summary', requireStaff, (req,res)=>{const file=path.join(__dirname,'assets','official-forms','irs-individual-income-tax','semantic-mapping.json'); const data=JSON.parse(fs.readFileSync(file,'utf8')); res.json({ok:true,version:APP_VERSION,summary:{documents:data.forms.length,mappedFields:data.forms.reduce((n,x)=>n+x.fieldCount,0),humanVerified:data.forms.filter(x=>x.humanVerified).length}});});
+app.get('/api/staff/individual-forms/sample-visual-qa-summary', requireStaff, (req,res)=>{const file=path.join(__dirname,'assets','official-forms','irs-individual-income-tax','qa','sample-visual-qa.json'); const data=JSON.parse(fs.readFileSync(file,'utf8')); res.json({ok:true,version:APP_VERSION,summary:{records:data.records.length,samplesGenerated:data.records.filter(x=>x.sampleGenerationStatus==='generated').length,pageRenderPassed:data.records.filter(x=>x.pageRenderPassed).length,humanApproved:data.records.filter(x=>x.humanVisualQaApproved).length}});});
+
+app.get('/api/tax/credits-dependents/form-library', (req,res)=>res.json({ok:true,version:APP_VERSION,engine_version:CREDITS_DEPENDENTS_VERSION,library:buildCreditsDependentsLibrary()}));
+app.get('/api/tax/credits-dependents/questionnaire', (req,res)=>res.json({ok:true,version:APP_VERSION,questionnaire:CREDITS_DEPENDENTS_QUESTIONS,safety:'Routing and organization only; credit eligibility, refund, filing, and IRS acceptance are not guaranteed.'}));
+app.post('/api/tax/credits-dependents/recommendation', (req,res)=>{const recommendation=recommendCreditsDependentsForms((req.body||{}).answers||req.body||{}); store.addEvent('credits_dependents_recommendation_generated',{customer_forms:recommendation.customerForms.map(f=>f.formNumber),internal_forms:recommendation.internalComplianceForms.map(f=>f.formNumber)},req); res.json({ok:true,version:APP_VERSION,recommendation});});
+app.get('/api/tax/credits-dependents/forms/:formNumber/organizer', (req,res)=>{try{return res.json({ok:true,version:APP_VERSION,organizer:buildCreditsDependentsOrganizer(req.params.formNumber)});}catch(error){return res.status(404).json({ok:false,error:error.message});}});
+app.get('/api/tax/credits-dependents/readiness', (req,res)=>res.json({ok:true,version:APP_VERSION,readiness:buildCreditsDependentsReadiness()}));
+app.get('/api/tax/forms/schedule-eic/policy', (req,res)=>res.json({ok:true,version:APP_VERSION,source:CREDITS_DEPENDENTS_SOURCES['SCHEDULE-EIC'],policy:CREDITS_DEPENDENTS_POLICIES['SCHEDULE-EIC']}));
+app.get('/api/tax/forms/schedule-eic/field-map', (req,res)=>res.json({ok:true,version:APP_VERSION,field_map:eicFieldMapReport()}));
+app.post('/api/tax/forms/schedule-eic/completion-plan', (req,res)=>res.json({ok:true,version:APP_VERSION,plan:buildEicCompletionPlan((req.body||{}).answers||req.body||{})}));
+app.post('/api/staff/tax/forms/schedule-eic/draft-pdf', requireStaff, async (req,res)=>{try{const pdf=await createEicDraftPdfBuffer((req.body||{}).answers||req.body||{}); res.setHeader('Content-Type','application/pdf'); res.setHeader('Content-Disposition','attachment; filename="schedule-eic-2025-controlled-sample.pdf"'); return res.send(pdf);}catch(error){return res.status(422).json({ok:false,error:error.message});}});
+app.get('/api/tax/forms/8880/policy', (req,res)=>res.json({ok:true,version:APP_VERSION,source:CREDITS_DEPENDENTS_SOURCES['8880'],policy:CREDITS_DEPENDENTS_POLICIES['8880']}));
+app.get('/api/tax/forms/8880/field-map', (req,res)=>res.json({ok:true,version:APP_VERSION,field_map:form8880FieldMapReport()}));
+app.post('/api/tax/forms/8880/calculation', (req,res)=>res.json({ok:true,version:APP_VERSION,result:calculate8880((req.body||{}).answers||req.body||{})}));
+app.post('/api/tax/forms/8880/completion-plan', (req,res)=>res.json({ok:true,version:APP_VERSION,plan:build8880CompletionPlan((req.body||{}).answers||req.body||{})}));
+app.post('/api/staff/tax/forms/8880/draft-pdf', requireStaff, async (req,res)=>{try{const pdf=await create8880DraftPdfBuffer((req.body||{}).answers||req.body||{}); res.setHeader('Content-Type','application/pdf'); res.setHeader('Content-Disposition','attachment; filename="form-8880-2025-controlled-sample.pdf"'); return res.send(pdf);}catch(error){return res.status(422).json({ok:false,error:error.message});}});
+
+// v0.1.72 narrow, fail-closed 2025 Form 1040 Simple W-2 controlled pilot.
+function simple1040Evidence() {
+  const file=path.join(__dirname,'assets','official-forms','irs-individual-income-tax','qa','1040-simple-w2-controlled-pilot.json');
+  if(!fs.existsSync(file)) return {};
+  try { return JSON.parse(fs.readFileSync(file,'utf8')); } catch (_error) { return {}; }
+}
+app.get('/api/tax/forms/1040-simple-w2/policy', (req,res)=>res.json({ok:true,version:APP_VERSION,engine_version:SIMPLE_1040_VERSION,source:SIMPLE_1040_SOURCE,policy:SIMPLE_1040_POLICY}));
+app.get('/api/tax/forms/1040-simple-w2/questionnaire', (req,res)=>res.json({ok:true,version:APP_VERSION,engine_version:SIMPLE_1040_VERSION,questionnaire:SIMPLE_1040_QUESTIONS,safety:'Synthetic or redacted internal QA only. Real taxpayer data, signatures, filing, and e-file remain blocked.'}));
+app.get('/api/tax/forms/1040-simple-w2/field-map', (req,res)=>res.json({ok:true,version:APP_VERSION,engine_version:SIMPLE_1040_VERSION,field_map:buildSimple1040FieldMapReport()}));
+app.get('/api/tax/forms/1040-simple-w2/readiness', (req,res)=>{
+  const evidence=simple1040Evidence();
+  const automated=evidence.automatedAssertions||{};
+  res.json({ok:true,version:APP_VERSION,engine_version:SIMPLE_1040_VERSION,readiness:buildSimple1040Readiness({deterministicCalculationTestsPassed:Object.keys(automated).length>0&&Object.values(automated).every(Boolean),automatedSamplePdfGenerated:Boolean(evidence.samplePdf),automatedRenderPassed:evidence.renderEvidence?.automatedRenderPassed===true})});
+});
+app.post('/api/tax/forms/1040-simple-w2/ai-helper-state', (req,res)=>{
+  const state=buildSimple1040InterviewState(req.body||{});
+  res.status(state.validation.ok||state.nextQuestion?200:422).json({ok:true,version:APP_VERSION,engine_version:SIMPLE_1040_VERSION,state});
+});
+app.post('/api/tax/forms/1040-simple-w2/completion-plan', (req,res)=>{
+  const plan=buildSimple1040CompletionPlan(req.body||{});
+  res.status(plan.ok?200:422).json({ok:plan.ok,version:APP_VERSION,engine_version:SIMPLE_1040_VERSION,plan});
+});
+app.post('/api/staff/tax/forms/1040-simple-w2/draft-pdf', requireStaff, async (req,res)=>{
+  try {
+    const buffer=await createSimple1040DraftPdfBuffer(req.body||{});
+    res.setHeader('Content-Type','application/pdf');
+    res.setHeader('Content-Disposition','attachment; filename=1040-simple-w2-controlled-sample.pdf');
+    res.setHeader('Cache-Control','no-store');
+    return res.send(buffer);
+  } catch (error) {
+    return res.status(422).json({ok:false,version:APP_VERSION,error:String(error.message||error),release_boundary:'Sample/internal QA only; no real taxpayer data, signature, filing, or submission.'});
+  }
+});
+
 app.use('/api', (req, res) => res.status(404).json({ ok: false, error: 'API endpoint not found.' }));
 app.use((req, res) => res.status(404).sendFile(path.join(__dirname, 'public', '404.html')));
 
 app.listen(PORT, () => console.log(`Justice Tax Solutions v${APP_VERSION} running on ${PORT}`));
+// v0.1.60 1040-X route markers: /api/tax/forms/1040-x/official-output-readiness /api/tax/forms/1040-x/field-map /api/tax/forms/1040-x/organizer-schema /api/tax/forms/1040-x/completion-plan /api/tax/forms/1040-x/sample-fill-audit /api/tax/forms/1040-x/verification-sheet /api/tax/forms/1040-x/draft-pdf

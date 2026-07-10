@@ -1,0 +1,28 @@
+{
+  "version": "0.1.75",
+  "generatedAt": "2026-07-10T12:04:50.856Z",
+  "deterministicCalculationTestsPassed": true,
+  "records": [
+    {
+      "slug": "schedule-eic",
+      "relativePath": "assets/official-forms/irs-individual-income-tax/generated-samples/schedule-eic-2025-controlled-sample.pdf",
+      "sha256": "7e4ea2d9e5f3b5abdbd56ff8d2685b5ce80b77fb52dfa50729918479efa5d2dc",
+      "pages": 2,
+      "automatedRenderPassed": true,
+      "humanVisualQaApproved": false,
+      "professionalApproved": false,
+      "ownerApproved": false
+    },
+    {
+      "slug": "form-8880",
+      "relativePath": "assets/official-forms/irs-individual-income-tax/generated-samples/form-8880-2025-controlled-sample.pdf",
+      "sha256": "7e19b15a8dd38cab759edcf3682c07dbb0785f94d3927768dbb8e5e748dc7bad",
+      "pages": 2,
+      "automatedRenderPassed": true,
+      "humanVisualQaApproved": false,
+      "professionalApproved": false,
+      "ownerApproved": false
+    }
+  ],
+  "releaseBoundary": "Synthetic automated evidence only; human semantic QA, page-by-page visual QA, professional approval, owner release, and production security remain required."
+}

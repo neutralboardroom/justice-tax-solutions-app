@@ -1,0 +1,41 @@
+{
+  "taxYear": 2025,
+  "sampleMode": true,
+  "filingStatus": "married_filing_jointly",
+  "taxpayer": {
+    "firstName": "Sample",
+    "middleInitial": "A",
+    "lastName": "Taxpayer",
+    "ssn": "000-00-0000",
+    "address": {
+      "street": "100 Example Avenue",
+      "apartment": "2B",
+      "city": "Albany",
+      "state": "NY",
+      "zip": "12207"
+    }
+  },
+  "spouse": {
+    "firstName": "Example",
+    "middleInitial": "B",
+    "lastName": "Taxpayer",
+    "ssn": "000-00-0001"
+  },
+  "w2s": [
+    { "employerName": "Sample Employer One", "box1Wages": 42000, "box2FederalIncomeTaxWithheld": 3500 },
+    { "employerName": "Sample Employer Two", "box1Wages": 38000, "box2FederalIncomeTaxWithheld": 2500 }
+  ],
+  "eligibility": {
+    "noDependents": true,
+    "noOtherIncome": true,
+    "standardDeductionOnly": true,
+    "noAgeOrBlindnessAdjustment": true,
+    "noCreditsOrOtherTaxes": true,
+    "professionalNoEicConfirmation": true,
+    "noDigitalAssetActivity": true,
+    "noDirectDeposit": true,
+    "domesticAddressOnly": true,
+    "notDependentOfAnotherTaxpayer": true,
+    "noDualStatusOrNonresidentElection": true
+  }
+}

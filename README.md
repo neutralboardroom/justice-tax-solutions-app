@@ -1,78 +1,138 @@
-# Justice Tax Solutions v0.1.38
+# Justice Tax Solutions v0.1.75 — credits and dependents controlled form engine
 
-v0.1.38 adds the IRS Form 9465 official PDF capture/upload completion workflow, coordinate-lock simulation, and staff approval-gate reporting. It builds on v0.1.37 by making the capture/upload and coordinate QA process more operational while keeping final client IRS output blocked unless actual official PDF, checksum, true coordinate lock, sample QA, client verification, professional release, payment/quote, and production-security gates pass.
+Adds seven verified official IRS assets covering Schedule EIC and Forms 8332, 8862, 8867, and 8880. The build includes checksum/revision/source metadata, technical field inventory, fail-closed AI-helper routing, a controlled Schedule EIC qualifying-child organizer, a narrow deterministic 2025 Form 8880 saver’s-credit calculation lane, staff-only synthetic sample PDFs, and professional-review organizers for prior credit disallowance, custodial-parent releases, and paid-preparer due diligence.
 
-## Included through v0.1.38
+Real taxpayer data, final filing output, signatures, preparer certifications, e-file, agency submission, and credit/refund guarantees remain blocked.
 
-- Tax-problem-first Justice Tax Solutions platform.
-- AI-first form completion planning.
-- Official IRS/NYS/NYC source catalog and controlled mapping workflow.
-- IRS Form 9465 completion plan, sample QA, visual QA, fill/overlay engine prep.
-- IRS Form 9465 URL capture readiness.
-- IRS Form 9465 official PDF upload fallback when URL capture is blocked.
-- IRS Form 9465 checksum validation and coordinate-lock workflow.
-- IRS Form 9465 official sample output preview and visual overlay comparison packet workflow.
-- IRS Form 9465 client verification checklist, professional release gate, final output gate audit, and client-ready draft path.
-- IRS Form 9465 operational capture/upload test and true-coordinate QA workflow.
-- IRS Form 9465 capture/upload completion readiness, coordinate-lock simulation plan, staff approval-gate report, and internal completion packet.
-- Professional operations and credential verification workflow.
-- Payments, quotes, transactional-message records, appointment confirmations/reminders.
-- Live online consultation and professional scheduling readiness.
-- Marketing conversion pages, staff cockpit, analytics, and private pilot release-candidate gates.
-- Production security and sensitive-upload readiness gates.
+# Justice Tax Solutions v0.1.74 — selected logo-system replacement
 
-## Added in v0.1.38
+Adopts the selected **Concept 2** logo family (document + checkmark) across the core website assets, favicon/app icons, and referral-flyer marketing output while preserving the current color palette, typography, navigation structure, and platform flow.
 
-New module:
+## v0.1.73 — homepage prior-return review separation
 
-- `src/form9465CaptureCompletion.js`
+Separates prior-return amendment review from new-return filing in the homepage choice architecture and strengthens its prominence without disturbing the six-path start flow.
 
-New endpoints:
+# Justice Tax Solutions v0.1.72 — IRS individual return deep mapping and controlled pilot
 
-- `GET /api/tax/forms/9465/capture-completion-readiness`
-- `GET /api/tax/forms/9465/coordinate-lock-simulation-plan`
-- `POST /api/tax/forms/9465/staff-approval-gate-report`
-- `POST /api/tax/forms/9465/capture-completion-packet`
-- `GET /api/cases/:id/forms/9465/capture-completion-readiness`
-- `POST /api/cases/:id/forms/9465/staff-approval-gate-report`
-- `POST /api/cases/:id/forms/9465/capture-completion-packet`
-- `GET /api/staff/forms/9465/capture-completion-board`
-- `POST /api/staff/forms/9465/capture-completion-status`
-- `POST /api/staff/forms/9465/staff-approval-gate-status`
+Adds verified intake evidence for the two uploaded official-form archives and a narrow, fail-closed 2025 Form 1040 W-2-only lane with structured AI-helper questions, deterministic tax-table calculations, engineered field mappings, controlled sample PDF generation, and explicit human/professional/owner release gates. Real taxpayer data, signatures, final filing output, e-file, and agency submission remain blocked.
 
-## Capture/upload completion workflow
 
-The workflow checks whether the official IRS Form 9465 source has been seeded, whether the official PDF has been captured or uploaded, whether a checksum is recorded, whether basic PDF inspection passes, whether staff recorded source/checksum review, and whether the real page coordinates have been locked against the official PDF.
+## v0.1.71 — IRS individual income tax form engine
 
-## Coordinate-lock simulation
+Adds the uploaded IRS individual return forms, automated field inventory, safe sample generation, guided recommendation logic, and controlled QA evidence.
 
-v0.1.38 adds a simulation/rehearsal path so staff can practice page 1/page 2 coordinate locks, sample overlay review, and staff approval before real production coordinates are locked. Simulation approval is always marked as training only and cannot authorize final client IRS output.
+## v0.1.70 — Official form operational release gates
 
-## Staff approval gates
+Adds automated AcroForm field inventory, per-form release evidence, fail-closed paid-pilot eligibility, and an internal Official Form Release Center. Captured PDFs remain blocked from paid print-ready use until mapping, sample output, visual QA, client verification, professional review, security, and owner approval all pass. IRS e-file and agency submission remain disabled.
+# Justice Tax Solutions v0.1.64 - Release continuity, save/resume polish, and homepage-stable platform refinement
 
-The staff approval-gate report separates:
+v0.1.62 is a broad non-form platform improvement pass. It preserves every previously built Justice Tax Solutions feature, keeps the no-new-IRS-forms-without-official-PDFs policy, and refines customer flow, staff/owner dashboards, pricing/help language, Spanish parity, marketing pages, upload safety, deployment readiness, and official-PDF intake readiness.
 
-- source/capture or upload approval;
-- true coordinate lock approval;
-- operational QA approval;
-- optional simulation rehearsal approval;
-- final release audit gates.
+## v0.1.64 - Release continuity, save/resume polish, and homepage-stable platform refinement
 
-Simulation records cannot substitute for actual release gates.
+This build preserves the current homepage setup and avoids adding new IRS form bundles. It strengthens deployment-safe continuity so public customers, staff, accountants, CPAs, EAs, and other tax professionals can save work, resume later, and keep account, case, quote, payment, document, and review information intact across platform updates.
 
-## Final output remains blocked
+Key additions:
 
-v0.1.38 does not enable final client-facing official IRS Form 9465 output unless every required actual gate passes. In the default pilot/demo state, it remains blocked. Final output still requires:
+- `/release-continuity.html`
+- `src/releaseContinuity.js`
+- `/api/platform/release-continuity-audit`
+- `/api/platform/homepage-stability-rule`
+- `/api/platform/save-resume-continuity-map`
+- `/api/platform/deployment-safe-release-gates`
+- `/api/platform/payment-quote-preservation-checklist`
+- `/api/professional/work-progress/drafts`
+- `/api/staff/release-continuity-board`
+- `/api/staff/release-continuity-check`
+- `/api/staff/quote-payment-preservation-check`
 
-- official IRS PDF captured/uploaded and checksummed;
-- exact AcroForm fields or overlay coordinates locked against the real PDF;
-- visual sample QA passed;
-- overflow/signature/direct-debit checks passed;
-- client values verified;
-- required professional release recorded;
-- payment/quote gates satisfied;
-- production security, storage, malware, access-control, WISP, retention, incident-response, and operating gates complete.
+Data rule: deployments are source-code updates only. They must not wipe or reset users, login records, cases, saved drafts, uploaded document references, staff/professional work, quotes, payments, referral rewards, release gates, or audit logs.
 
-## Environment and operations
 
-Do not include secrets or taxpayer documents in ZIP builds. Real sensitive document handling must remain blocked until production database, private storage, malware scanning, staff/professional access controls, WISP-style safeguards, email, Stripe webhook, verified professionals, and operating procedures are configured.
+## Main decision preserved
+
+Do **not** add more logical-only IRS form bundles until Roger uploads official IRS PDFs or a verified official PDF source is captured and QA'd. Existing organizers and logical maps remain useful for controlled testing, but paid-user-ready official output requires official PDF capture, checksum, field/coordinate lock, sample-filled output, visual QA, staff/professional release, production security approval, and owner approval.
+
+## Added in v0.1.62
+
+- `/platform-continuity-polish.html` — one owner/staff control page for the broad platform audit.
+- `src/platformContinuityPolish.js` — consolidated platform continuity, customer-flow, staff, pricing, Spanish, marketing, upload, deployment, and official-PDF readiness guidance.
+- New readiness/polish APIs:
+  - `GET /api/platform/continuity-polish-audit`
+  - `GET /api/platform/customer-flow-quality-gate`
+  - `GET /api/platform/staff-daily-operating-map`
+  - `GET /api/platform/pricing-message-alignment`
+  - `GET /api/platform/spanish-parity-action-plan`
+  - `GET /api/platform/marketing-safety-review`
+  - `GET /api/platform/official-pdf-readiness-ladder`
+  - `GET /api/platform/deployment-smoke-test-plan`
+
+## Polished in v0.1.62
+
+- Homepage next-best-action guidance.
+- Dashboard progress hub language.
+- Staff daily quality-control lane.
+- Staff cockpit/privacy-safe analytics positioning.
+- Pricing free-vs-paid clarity.
+- FAQ continuity language.
+- Marketing safety language.
+- Spanish public touchpoints.
+- Official PDF intake readiness ladder.
+- Deployment readiness smoke-test plan.
+- Document upload safety reminders.
+
+## Preserved
+
+- Personal tax return filing intake.
+- Business tax return filing/help intake.
+- Prior-return review / amendment opportunity prominence.
+- Free Tax Problem Truth Check.
+- Spanish UX/parity pages.
+- Existing controlled organizer/form bundles: IRS 9465, 433-F, 1040-X, 2848/8821, 843/9423/12153.
+- SBTPG and Republic Refund as future vendor candidates only.
+- Live sensitive uploads remain blocked.
+- Final official form output, e-file, agency submission, direct debit, Refund Transfer, and refund advance remain blocked.
+- No refund, savings, penalty-removal, payment-plan, amended-return, business-tax, professional-review, or government-outcome guarantees.
+
+## Safe operating posture
+
+This version is appropriate for public website review and controlled no-sensitive-data testing after deployment smoke tests. It is not ready for broad public advertising, real unredacted taxpayer uploads, final official IRS/NYS/NYC form output, e-file, agency submission, live bank products, or unrestricted professional review claims.
+
+## Local checks
+
+Run:
+
+```bash
+npm install
+npm run check
+npm audit --audit-level=moderate
+npm start
+```
+
+Then smoke-test `/health`, `/`, `/platform-continuity-polish.html`, `/platform-readiness-workbench.html`, `/official-pdf-intake.html`, `/deployment-readiness.html`, `/official-forms.html`, `/dashboard.html`, `/staff.html`, `/staff-cockpit.html`, `/pricing.html`, `/faq.html`, `/marketing.html`, `/ayuda-impuestos-espanol.html`, `/document-safety-center.html`, and the v0.1.62 APIs.
+
+
+## v0.1.63 - Deployment-safe persistence and save/resume continuity
+
+This build pauses new IRS form additions and focuses on preserving customer, staff, accountant/CPA/professional, payment, document, and work-progress data across deployments.
+
+Key additions:
+
+- `/platform-data-continuity.html, /release-continuity.html`
+- `/api/platform/data-continuity-safeguards`
+- `/api/platform/persistence-readiness`
+- `/api/platform/save-resume-readiness`
+- `/api/platform/deployment-data-preservation-checklist`
+- `/api/work-progress/drafts`
+- `/api/cases/:id/progress-save`
+- `/api/staff/deployment-data-check`
+
+Deployment rule: source-code deployments must never wipe user accounts, login records, cases, saved drafts, uploaded document records, staff notes, professional work, quotes, payments, or audit logs. Runtime data must live in managed PostgreSQL/private object storage or persistent external DATA_DIR/UPLOAD_DIR paths, not inside a replaceable source ZIP.
+
+
+## v0.1.68 — IRS Tax Debt Resolution Form Engine
+See `docs/v0.1.68-irs-tax-debt-resolution-form-engine.md`. Official IRS PDFs are included as controlled source assets with checksum tracking; final output and submission remain blocked pending mapping and QA gates.
+
+
+## v0.1.70
+Adds production operational evidence gates, automated technical semantic mapping for all inventoried fields, sample-filled output generation, automated page render QA, and fail-closed human/professional/owner approval controls. See `docs/v0.1.70-production-operational-gates.md`.

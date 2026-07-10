@@ -1,0 +1,156 @@
+{
+  "version": "0.1.72",
+  "generatedAt": "2026-07-10T11:03:52.875Z",
+  "scope": "2025 Form 1040 Simple W-2 Controlled Pilot",
+  "status": "sample_and_internal_qa_only",
+  "source": {
+    "agency": "Internal Revenue Service",
+    "formNumber": "1040",
+    "taxYear": 2025,
+    "title": "2025 Form 1040 - U.S. Individual Income Tax Return",
+    "officialUrl": "https://www.irs.gov/pub/irs-pdf/f1040.pdf",
+    "localRelativePath": "assets/official-forms/irs-individual-income-tax/f1040 U.S. Individual Income Tax Return.pdf",
+    "officialInstructionsUrl": "https://www.irs.gov/pub/irs-pdf/i1040gi.pdf",
+    "taxTableRelativePath": "assets/tax-rules/2025-federal-income-tax-table.json",
+    "sourceBoundary": "The packaged PDF and extracted tax table are controlled source assets. Current revision and release approval must be rechecked before real-user use."
+  },
+  "fixture": "tests/fixtures/form1040-simple-w2-sample.json",
+  "samplePdf": "assets/official-forms/irs-individual-income-tax/generated-samples/1040-simple-w2-controlled-sample.pdf",
+  "sampleSha256": "d28765046fbfdf5d2adb4acdc46cecaa6303fd20c74885a7a813bfa6dcf05b1b",
+  "pageCount": 2,
+  "calculation": {
+    "taxYear": 2025,
+    "filingStatus": "married_filing_jointly",
+    "filingStatusLabel": "Married filing jointly",
+    "wages": 80000,
+    "totalIncome": 80000,
+    "adjustedGrossIncome": 80000,
+    "standardDeduction": 31500,
+    "totalDeductions": 31500,
+    "taxableIncome": 48500,
+    "line16Tax": 5346,
+    "taxTableInterval": {
+      "atLeast": 48500,
+      "lessThan": 48550,
+      "sourcePdfPage": 74
+    },
+    "totalTax": 5346,
+    "federalIncomeTaxWithheld": 6000,
+    "totalPayments": 6000,
+    "overpayment": 654,
+    "refund": 654,
+    "amountOwed": 0,
+    "directDepositEnabled": false,
+    "signatureFieldsPopulated": false,
+    "preparerFieldsPopulated": false,
+    "filingStatusDeterminedByEngine": false,
+    "sourceDocumentCount": 2
+  },
+  "mappedFieldCount": 31,
+  "automatedAssertions": {
+    "officialPdfLoaded": true,
+    "generatedPdfReloaded": true,
+    "expectedTwoPages": true,
+    "wagesField": true,
+    "taxableIncomeField": true,
+    "taxField": true,
+    "refundField": true,
+    "bankFieldsBlank": true,
+    "preparerAndPtinBlank": true
+  },
+  "renderEvidence": {
+    "automatedRenderPassed": true,
+    "renderer": "/home/oai/skills/pdfs/scripts/render_pdf.py at 180 DPI",
+    "pageImages": [
+      {
+        "file": "page-1.png",
+        "sha256": "e83dd4858c2e3b2e4440dd4ce840448b5f3ad4731d3cc27e314ca2c1b3d8729c",
+        "sizeBytes": 674512
+      },
+      {
+        "file": "page-2.png",
+        "sha256": "cfc497bbf402a5e595b91c95d2f1fa314246ca542de5e9554c54786b3911d490",
+        "sizeBytes": 649702
+      }
+    ],
+    "pageCount": 2,
+    "inspectionStatus": "assistant_visual_inspection_completed_no_obvious_clipping_overlap_or_black_render_artifacts",
+    "humanVisualQaApproved": false,
+    "note": "Automated rendering and an assistant visual inspection are evidence only; formal page-by-page human QA approval remains unrecorded."
+  },
+  "approvals": {
+    "humanSemanticVerificationApproved": false,
+    "humanVisualQaApproved": false,
+    "professionalApprovalRecorded": false,
+    "ownerReleaseRecorded": false
+  },
+  "releaseBoundaries": {
+    "realUserData": false,
+    "signedReturn": false,
+    "printReadyFinal": false,
+    "eFile": false,
+    "agencySubmission": false
+  },
+  "readiness": {
+    "version": "0.1.72",
+    "pilot": {
+      "name": "2025 Form 1040 Simple W-2 Controlled Pilot",
+      "status": "sample_and_internal_qa_only",
+      "purpose": "A narrow, deterministic first filing lane for a calendar-year 2025 return with W-2 wages only.",
+      "supported": [
+        "Tax year 2025 calendar-year Form 1040",
+        "Single or married filing jointly",
+        "One or more W-2s, aggregated from box 1 and box 2",
+        "Basic standard deduction",
+        "Taxable income below $100,000",
+        "2025 Form 1040 tax-table lookup",
+        "Refund or amount-owed calculation without direct deposit",
+        "Population of controlled identity, address, filing-status, income, tax, payment, refund, and amount-owed fields"
+      ],
+      "excluded": [
+        "Dependents or dependent-related credits",
+        "Earned income credit unless a qualified professional has affirmatively determined the amount is zero",
+        "Age/blindness additional standard deduction",
+        "Schedule 1-A or other additional deductions",
+        "Itemized deductions",
+        "Self-employment, capital gains, rental, pass-through, retirement, Social Security, unemployment, or other income",
+        "Schedule 1, 2, or 3 amounts",
+        "Digital-asset activity requiring reporting",
+        "Estimated payments, refundable credits, foreign address, dual-status, nonresident-spouse election, or direct deposit",
+        "Taxable income of $100,000 or more",
+        "Electronic filing, signature, preparer, bank, or submission functions"
+      ],
+      "failClosed": true,
+      "realUserGate": "Blocked until production security, live-sensitive-data approval, human semantic QA, professional approval, owner release, and filing-operation controls pass."
+    },
+    "gates": {
+      "officialPdfCaptured": true,
+      "officialUrlRecorded": true,
+      "taxYearLocked": true,
+      "taxTableCoverageValidated": true,
+      "officialExampleValidated": true,
+      "engineeredSemanticMapPresent": true,
+      "deterministicCalculationTestsPassed": true,
+      "automatedSamplePdfGenerated": true,
+      "automatedRenderPassed": true,
+      "humanSemanticVerificationApproved": false,
+      "humanVisualQaApproved": false,
+      "professionalApprovalRecorded": false,
+      "ownerReleaseRecorded": false,
+      "productionSensitiveDataGatePassed": false,
+      "signatureAndFilingControlsApproved": false
+    },
+    "readyForSyntheticSampleQa": true,
+    "readyForRealUserData": false,
+    "blockers": [
+      "humanSemanticVerificationApproved",
+      "humanVisualQaApproved",
+      "professionalApprovalRecorded",
+      "ownerReleaseRecorded",
+      "productionSensitiveDataGatePassed",
+      "signatureAndFilingControlsApproved"
+    ],
+    "status": "sample_and_internal_qa_only",
+    "warning": "A passing calculation or rendered PDF does not equal human semantic QA, professional approval, owner release, signature, filing, e-file, or IRS acceptance."
+  }
+}

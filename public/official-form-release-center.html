@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Official Form Release Center | Justice Tax Solutions</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="container" style="max-width:1100px;margin:0 auto;padding:32px 20px 64px">
+    <p><a href="/staff-cockpit.html">← Staff Cockpit</a></p>
+    <h1>Official Form Release Center</h1>
+    <p class="lead">Internal readiness center for controlled paid use of official IRS forms.</p>
+    <div class="notice warning">
+      <strong>Important:</strong> A captured IRS PDF is not automatically ready for paying users. Each form, language, and revision must pass every operational, security, mapping, visual-QA, client-verification, professional-review, and owner-approval gate.
+    </div>
+
+    <section class="card">
+      <h2>Release standard</h2>
+      <ol>
+        <li>Official source and checksum verified</li>
+        <li>AcroForm fields or overlay coordinates inventoried</li>
+        <li>100% semantic mapping for every used field</li>
+        <li>Sample-filled output generated and hashed</li>
+        <li>Page-by-page visual QA and overflow testing passed</li>
+        <li>Signature and preparer fields controlled</li>
+        <li>Client verification workflow tested</li>
+        <li>Credentialed professional review workflow tested</li>
+        <li>Production security controls passed</li>
+        <li>Owner release approval recorded</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Current inventory</h2>
+      <p id="inventory-status">Loading field inventory…</p>
+      <div id="inventory-table" style="overflow:auto"></div>
+    </section>
+
+    <section class="card">
+      <h2>What paid use means</h2>
+      <p>When a specific form passes every gate, Justice Tax Solutions may offer guided preparation and controlled print-ready output for that approved form only. This does not activate IRS e-file, electronic agency transmission, guaranteed acceptance, or government approval.</p>
+    </section>
+  </main>
+  <script>
+    fetch('/api/tax/official-forms/field-inventory').then(r=>r.json()).then(data=>{
+      const i=data.inventory;
+      document.getElementById('inventory-status').textContent=`${i.formCount} form families, ${i.documentCount} form PDFs, ${i.totalAcroformFields} AcroForm fields inventoried.`;
+      const rows=i.documents.map(d=>`<tr><td>${d.formNumber}</td><td>${d.language}</td><td>${d.pageCount ?? '—'}</td><td>${d.acroformFieldCount}</td><td>${d.inventoryStatus}</td></tr>`).join('');
+      document.getElementById('inventory-table').innerHTML=`<table><thead><tr><th>Form</th><th>Language</th><th>Pages</th><th>Fields</th><th>Inventory</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }).catch(()=>{document.getElementById('inventory-status').textContent='Inventory could not be loaded.'});
+  </script>
+</body>
+</html>
