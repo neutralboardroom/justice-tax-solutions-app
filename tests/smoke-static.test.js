@@ -3,7 +3,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 function assert(cond, msg) { if (!cond) { console.error(msg); process.exit(1); } }
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-assert(pkg.version === '0.1.79', 'package version must be 0.1.79');
+assert(pkg.version === '0.1.80-recovery.1', 'package version must be 0.1.80-recovery.1');
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const lockfile = fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8');
 assert(!/applied-caas-gateway|internal\.api\.openai\.org/.test(lockfile), 'package-lock.json must use public package registry URLs for Render deployment');
@@ -126,7 +126,7 @@ for (const marker of ['Release continuity', 'homepage-stability-rule', 'save-res
 const taxProPage = fs.readFileSync(path.join(root, 'public/tax-professionals.html'), 'utf8');
 for (const marker of ['For tax professionals','Professional interest form','data-public-page="true"']) assert(taxProPage.includes(marker), `missing v0.1.79 tax-professional page marker: ${marker}`);
 for (const marker of ['initUniformPublicNavigation','JTS_PUBLIC_NAV_EN','JTS_PUBLIC_NAV_ES','translateCommonSpanishUi','For tax professionals']) assert(appJs.includes(marker), `missing v0.1.79 navigation/Spanish marker: ${marker}`);
-console.log('Justice Tax Solutions v0.1.79 static smoke checks passed');
+console.log('Justice Tax Solutions v0.1.80-recovery.1 static smoke checks passed');
 
 for (const asset of ['logo.svg','brand-mark.svg','favicon.svg','favicon-32.png','apple-touch-icon.png','icon-512.png','site.webmanifest']) assert(fs.existsSync(path.join(root, 'public', asset)), `missing brand asset: ${asset}`);
 
@@ -167,3 +167,17 @@ const creditsPage=fs.readFileSync(path.join(root,'public','credits-dependents-fo
 for(const marker of ['Schedule EIC','Form 8880','Form 8862','Form 8332','Form 8867','AI helper']) assert(creditsPage.includes(marker),`missing credits/dependents page marker: ${marker}`);
 const creditsManifest=JSON.parse(fs.readFileSync(path.join(root,'assets','official-forms','irs-individual-income-tax','manifest.json'),'utf8'));
 for(const formNumber of ['SCHEDULE-EIC','8332','8862','8867','8880']) assert(creditsManifest.forms.some(item=>item.formNumber===formNumber),`missing manifest form ${formNumber}`);
+
+
+for (const marker of [
+  "app.post('/api/professional-inquiries'",
+  "app.get('/api/staff/professional-inquiries'",
+  "const role = 'client';",
+  "password.length < 12"
+]) assert(server.includes(marker), `missing v0.1.80 recovery server marker: ${marker}`);
+for (const marker of [
+  'id="professional-interest-form"',
+  '/api/professional-inquiries',
+  'privacy_acknowledged',
+  'Send professional inquiry'
+]) assert(taxProPage.includes(marker), `missing v0.1.80 recovery professional-inquiry marker: ${marker}`);
