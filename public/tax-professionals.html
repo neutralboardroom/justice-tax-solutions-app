@@ -9,6 +9,43 @@
 <div class="actions"><a class="button" href="#professional-interest">Tell us about your practice</a><a class="button secondary" href="/contact.html?topic=tax-professional">Contact us</a></div>
 <section class="grid three" style="margin-top:24px"><div class="card"><h2>Who may be a good fit</h2><p>CPAs, enrolled agents, tax attorneys, credentialed return preparers, and other qualified professionals whose experience matches the services offered.</p></div><div class="card"><h2>How opportunities may work</h2><p>Depending on credentials, availability, licensing, location, and client needs, professionals may support preparation, review, consultation, notice response, or resolution work.</p></div><div class="card"><h2>Clear expectations</h2><p>An inquiry does not guarantee acceptance, assignments, employment, partnership, or a specific volume of work. Any relationship must be separately reviewed and agreed upon.</p></div></section>
 <section class="card wide" id="professional-interest" style="margin-top:22px"><p class="kicker">Professional interest form</p><h2>Start a conversation with our team.</h2><p>Share general professional information only. Do not include taxpayer records, Social Security numbers, bank information, or confidential client documents.</p>
-<form action="/contact.html" class="grid two" method="get"><input name="topic" type="hidden" value="tax-professional"/><label>Full name<input autocomplete="name" name="name" required=""/></label><label>Professional email<input autocomplete="email" name="email" required="" type="email"/></label><label>Credential or professional role<select name="credential" required=""><option value="">Select one</option><option>CPA</option><option>Enrolled Agent</option><option>Tax Attorney</option><option>Credentialed Tax Return Preparer</option><option>Other Tax Professional</option></select></label><label>State or primary service area<input autocomplete="address-level1" name="service_area"/></label><label class="wide">Areas of experience<textarea name="experience" placeholder="For example: individual returns, business returns, amended returns, IRS notices, collections, audits, or state tax matters." rows="5"></textarea></label><div class="actions wide"><button type="submit">Continue inquiry</button></div></form></section>
+<form class="grid two" id="professional-interest-form" novalidate>
+<input name="source" type="hidden" value="tax-professionals-page"/>
+<label>Full name<input autocomplete="name" name="full_name" required/></label>
+<label>Professional email<input autocomplete="email" name="email" required type="email"/></label>
+<label>Credential or professional role<select name="credential" required><option value="">Select one</option><option>CPA</option><option>Enrolled Agent</option><option>Tax Attorney</option><option>Credentialed Tax Return Preparer</option><option>Other Tax Professional</option></select></label>
+<label>State or primary service area<input autocomplete="address-level1" name="service_area"/></label>
+<label class="wide">Areas of experience<textarea name="experience" placeholder="For example: individual returns, business returns, amended returns, IRS notices, collections, audits, or state tax matters." rows="5"></textarea></label>
+<label class="wide"><input name="privacy_acknowledged" required type="checkbox"/> I confirm that I am not submitting taxpayer records, Social Security numbers, bank information, or confidential client documents in this inquiry.</label>
+<label aria-hidden="true" class="sr-only">Website<input autocomplete="off" name="company_website" tabindex="-1"/></label>
+<div class="actions wide"><button type="submit">Send professional inquiry</button></div>
+<p aria-live="polite" class="notice-text wide" id="professional-interest-status" role="status"></p>
+</form></section>
 <section class="card wide" style="margin-top:20px"><h2>Professional standards</h2><p>Professionals must accurately describe their credentials and authority, protect client confidentiality, follow applicable tax-practice rules, avoid guarantees, and accept only work they are qualified and permitted to perform.</p></section></main>
-<footer class="footer"><div class="footer-inner"><p>Justice Tax Solutions is independent and is not the IRS, a state or local tax agency, or a law firm.</p><p><a href="/privacy.html">Privacy</a> · <a href="/security.html">Security</a> · <a href="/terms.html">Terms</a> · <a href="/disclaimer.html">Disclaimer</a> · <a href="/contact.html">Contact</a></p></div></footer><script src="/app.js"></script></body></html>
+<footer class="footer"><div class="footer-inner"><p>Justice Tax Solutions is independent and is not the IRS, a state or local tax agency, or a law firm.</p><p><a href="/privacy.html">Privacy</a> · <a href="/security.html">Security</a> · <a href="/terms.html">Terms</a> · <a href="/disclaimer.html">Disclaimer</a> · <a href="/contact.html">Contact</a></p></div></footer><script src="/app.js"></script><script>
+(() => {
+  const form = document.getElementById('professional-interest-form');
+  const status = document.getElementById('professional-interest-status');
+  if (!form || !status) return;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    status.textContent = 'Sending your inquiry…';
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.privacy_acknowledged = form.elements.privacy_acknowledged.checked;
+    try {
+      const response = await fetch('/api/professional-inquiries', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.ok === false) throw new Error(result.error || 'We could not send your inquiry.');
+      status.textContent = result.message || 'Thank you. Your inquiry has been received for review.';
+      form.reset();
+    } catch (error) {
+      status.textContent = error.message || 'We could not send your inquiry. Please try again.';
+    }
+  });
+})();
+</script></body></html>
