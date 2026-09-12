@@ -1,3 +1,19 @@
+# Justice Tax Solutions v0.1.80-recovery.1 — verified recovery hardening and professional inquiry workflow
+
+This is a **recovery build**, created from the newest complete source that could be independently verified: Git commit `2994d619fc01cd496ce075da1ea31c55b56985e0` (v0.1.79). Historical continuation material proves that v0.1.80 was built later, but that ZIP is not currently recoverable from the accessible Library. This branch therefore does **not** claim byte-for-byte continuity with the missing v0.1.80 or later historical packages.
+
+Material improvements in this recovery release:
+
+- makes the public tax-professional interest form submit to a real, rate-limited persistence endpoint;
+- adds protected staff review and status-update endpoints for professional inquiries;
+- adds a privacy acknowledgment, honeypot, field limits, and SSN-pattern rejection to the professional inquiry path;
+- increases public signup and password-reset minimums to 12 characters;
+- removes public staff/professional role escalation from `/api/signup`; public signup is client-only;
+- adds focused regression checks covering the recovery controls;
+- preserves all inherited tax workflows, official-form assets, pricing logic, branding, and internal/public route boundaries from v0.1.79.
+
+Deployment status: **not deployed**. No production configuration was changed.
+
 # Justice Tax Solutions v0.1.79 — Spanish parity, uniform navigation, and professional network inquiry
 
 This build adds one consistent public menu across the platform, expands Spanish-language parity for public pages and common customer interactions, adds a customer-facing page for qualified tax professionals interested in joining the network, and continues the public-language cleanup.
