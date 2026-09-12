@@ -898,6 +898,72 @@ app.get('/api/config', (req, res) => {
   res.json({ ok: true, app: 'Justice Tax Solutions', version: APP_VERSION, base_url: requestBaseUrl(req), starting_paths: STARTING_PATHS, federal_mvp_forms: FEDERAL_MVP_FORMS, ny_mvp_forms: NY_MVP_FORMS, nyc_mvp_workflows: NYC_MVP_WORKFLOWS, pricing: pricingLedger(), ai_vendors_configured: configuredVendors(), review_roles: REVIEW_ROLES, review_tiers: REVIEW_TIERS, role_permissions: ROLE_PERMISSIONS, compliance_requirements: PREPARER_COMPLIANCE_REQUIREMENTS, official_form_uploads_ready: true, live_service_levels: LIVE_SERVICE_LEVELS, client_journey: LIVE_CLIENT_JOURNEY, operating_policies: OPERATING_POLICIES });
 });
 
+const professionalInquiryLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8 });
+
+app.post('/api/professional-inquiries', professionalInquiryLimiter, (req, res) => {
+  const body = req.body || {};
+  // Honeypot: return the same response shape without retaining automated submissions.
+  if (safeDisplay(body.company_website || '', 200)) {
+    return res.json({ ok: true, message: 'Thank you. Your inquiry has been received for review.' });
+  }
+  const fullName = safeDisplay(body.full_name || body.name || '', 160);
+  const email = safeDisplay(body.email || '', 240).toLowerCase();
+  const credential = safeDisplay(body.credential || '', 120);
+  const serviceArea = safeDisplay(body.service_area || '', 160);
+  const experience = safeDisplay(body.experience || '', 3000);
+  const privacyAcknowledged = body.privacy_acknowledged === true || body.privacy_acknowledged === 'true' || body.privacy_acknowledged === 'on' || body.privacy_acknowledged === 'yes';
+  if (!fullName || !email.includes('@') || !credential) {
+    return res.status(400).json({ ok: false, error: 'Please provide your name, professional email, and credential or professional role.' });
+  }
+  if (!privacyAcknowledged) {
+    return res.status(400).json({ ok: false, error: 'Please confirm that you are not submitting taxpayer records or confidential client information.' });
+  }
+  const combined = [fullName, email, serviceArea, experience].join(' ');
+  if (/\b\d{3}-\d{2}-\d{4}\b/.test(combined)) {
+    return res.status(400).json({ ok: false, error: 'Do not include Social Security numbers or taxpayer records in this form.' });
+  }
+  const inquiry = store.insert('professional_inquiries', {
+    full_name: fullName,
+    email,
+    credential,
+    service_area: serviceArea,
+    experience,
+    source: safeDisplay(body.source || 'tax-professionals-page', 120),
+    language: safeDisplay(body.language || 'English', 40),
+    status: 'new',
+    privacy_acknowledged: true
+  });
+  store.addEvent('professional_inquiry_received', { inquiry_id: inquiry.id, credential: inquiry.credential, status: inquiry.status }, req);
+  res.status(201).json({
+    ok: true,
+    inquiry_id: inquiry.id,
+    status: inquiry.status,
+    message: 'Thank you. Your inquiry has been received for staff review. This does not create an engagement, assignment, employment relationship, or guarantee of work.'
+  });
+});
+
+app.get('/api/staff/professional-inquiries', requireStaff, (req, res) => {
+  const status = safeDisplay(req.query.status || '', 60).toLowerCase();
+  const inquiries = store.list('professional_inquiries', (item) => !item.deleted_at && (!status || String(item.status || '').toLowerCase() === status));
+  res.json({ ok: true, version: APP_VERSION, count: inquiries.length, inquiries: inquiries.slice(0, 250) });
+});
+
+app.post('/api/staff/professional-inquiries/:id/status', requireStaff, (req, res) => {
+  const allowed = new Set(['new', 'contacted', 'reviewing', 'accepted', 'declined', 'closed']);
+  const status = safeDisplay((req.body || {}).status || '', 60).toLowerCase();
+  if (!allowed.has(status)) return res.status(400).json({ ok: false, error: 'Invalid inquiry status.' });
+  const existing = store.find('professional_inquiries', (item) => item.id === req.params.id && !item.deleted_at);
+  if (!existing) return res.status(404).json({ ok: false, error: 'Professional inquiry not found.' });
+  const updated = store.update('professional_inquiries', existing.id, {
+    status,
+    staff_note: safeDisplay((req.body || {}).staff_note || '', 1200),
+    reviewed_by: (req.staff || {}).id || '',
+    reviewed_at: new Date().toISOString()
+  });
+  store.addEvent('professional_inquiry_status_updated', { inquiry_id: existing.id, status, staff_id: (req.staff || {}).id || '' }, req);
+  res.json({ ok: true, version: APP_VERSION, inquiry: updated });
+});
+
 app.get('/api/me', (req, res) => {
   const user = currentUser(req);
   res.json({ ok: true, user: user ? publicUser(ensureReferralCode(user)) : null });
@@ -907,11 +973,11 @@ app.post('/api/signup', async (req, res) => {
   const body = req.body || {};
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
-  if (!email || !email.includes('@') || password.length < 6) return res.status(400).json({ ok: false, error: 'Enter an email and a password of at least 6 characters.' });
+  if (!email || !email.includes('@') || password.length < 12) return res.status(400).json({ ok: false, error: 'Enter a valid email and a password of at least 12 characters.' });
   const existing = store.find('users', (u) => !u.deleted_at && String(u.email || '').toLowerCase() === email);
   if (existing) return res.status(409).json({ ok: false, error: 'That email already has an account. Please sign in.' });
-  const requestedRole = String(body.role || 'client').toLowerCase();
-  const role = (body.staff_code && process.env.STAFF_SIGNUP_CODE && body.staff_code === process.env.STAFF_SIGNUP_CODE) ? (requestedRole === 'professional' ? 'professional' : 'staff') : 'client';
+  // Public signup is intentionally customer-only. Staff and professional access must be provisioned through controlled internal workflows.
+  const role = 'client';
   const incomingReferralCode = normalizeReferralCode(body.referral_code || body.ref || body.referred_by_code || '');
   const referrer = incomingReferralCode ? findReferrerByCode(incomingReferralCode) : null;
   const user = store.insert('users', {
@@ -962,7 +1028,7 @@ app.post('/api/account/request-password-reset', (req, res) => {
 app.post('/api/account/reset-password', async (req, res) => {
   const rawToken = String((req.body || {}).token || '');
   const password = String((req.body || {}).password || '');
-  if (password.length < 8) return res.status(400).json({ ok: false, error: 'Use a password of at least 8 characters.' });
+  if (password.length < 12) return res.status(400).json({ ok: false, error: 'Use a password of at least 12 characters.' });
   const token = store.findValidToken('password_reset_tokens', rawToken);
   if (!token) return res.status(400).json({ ok: false, error: 'Invalid or expired reset token.' });
   const user = store.find('users', (u) => u.id === token.user_id && !u.deleted_at);
