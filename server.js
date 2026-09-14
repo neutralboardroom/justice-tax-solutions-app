@@ -154,6 +154,17 @@ app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 app.use(rateLimit({ windowMs: 60 * 1000, limit: 180 }));
 
+app.use('/api/staff', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  next();
+});
+app.use('/api/admin', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  next();
+});
+
 const INTERNAL_HTML_PAGES = new Set(["admin.html", "brand-system.html", "competitive-intelligence.html", "controlled-public-launch-closeout.html", "customer-experience.html", "deployment-readiness.html", "document-verification.html", "experience-polish.html", "forms-upload-checklist.html", "founder-next-steps.html", "go-live.html", "launch-readiness.html", "live-client-flow.html", "official-form-release-center.html", "official-forms-admin.html", "official-pdf-intake.html", "pilot-readiness.html", "platform-continuity-polish.html", "platform-data-continuity.html", "platform-polish-audit.html", "platform-readiness-workbench.html", "prior-return-review-marketing.html", "private-pilot-release.html", "production-config.html", "production-operational-gates.html", "public-launch-audit.html", "public-launch-roadmap.html", "real-user-launch-center.html", "refund-efile-bank-products.html", "release-continuity.html", "security-plan.html", "spanish-language-audit.html", "staff-cockpit.html", "staff-pilot-ops.html", "staff-sla.html", "staff-tasks.html", "staff.html", "unified-tax-start-audit.html"]);
 
 app.use((req, res, next) => {
@@ -165,6 +176,9 @@ app.use((req, res, next) => {
     return res.redirect(302, `/signin.html?next=${nextPath}&reason=staff-access-required`);
   }
   res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Referrer-Policy', 'no-referrer');
   return next();
 });
 
@@ -311,9 +325,16 @@ function requirePermission(permission) {
   };
 }
 
+function secureTokenMatch(candidate = '', expected = '') {
+  const candidateBuffer = Buffer.from(String(candidate || ''), 'utf8');
+  const expectedBuffer = Buffer.from(String(expected || ''), 'utf8');
+  if (!candidateBuffer.length || candidateBuffer.length !== expectedBuffer.length) return false;
+  return crypto.timingSafeEqual(candidateBuffer, expectedBuffer);
+}
+
 function requireStaff(req, res, next) {
-  const token = req.headers['x-admin-token'] || req.query.admin_token;
-  if (ADMIN_TOKEN && token === ADMIN_TOKEN) {
+  const token = String(req.headers['x-admin-token'] || '');
+  if (ADMIN_TOKEN && secureTokenMatch(token, ADMIN_TOKEN)) {
     req.staff = { id: 'admin-token', role: 'admin', email: 'admin-token' };
     return next();
   }
@@ -324,9 +345,9 @@ function requireStaff(req, res, next) {
 }
 
 function adminGuard(req, res, next) {
-  const token = req.headers['x-admin-token'] || req.query.admin_token;
+  const token = String(req.headers['x-admin-token'] || '');
   if (!ADMIN_TOKEN) return res.status(500).json({ ok: false, error: 'ADMIN_TOKEN is not configured.' });
-  if (token !== ADMIN_TOKEN) return res.status(401).json({ ok: false, error: 'Unauthorized.' });
+  if (!secureTokenMatch(token, ADMIN_TOKEN)) return res.status(401).json({ ok: false, error: 'Unauthorized.' });
   next();
 }
 
