@@ -1,39 +1,48 @@
-# Next Version Improvement List — after v0.1.80-recovery.1
+# Next Version Improvement List — after v0.1.80-recovery.2
 
-Priority order is intentionally conservative until the missing later authoritative ZIP is recovered.
+Priority remains conservative because the historical v0.1.80 through v0.1.124 source packages are still unavailable.
 
-1. **Highest priority: recover and reconcile the missing later package**
-   - Locate the exact historical v0.1.80 ZIP or any later authoritative Justice Tax Solutions ZIP.
-   - Verify checksum before use.
-   - Diff recovery changes against that package.
-   - Carry forward only compatible improvements; never overwrite later working functionality with this recovery branch.
+1. **Recover and reconcile the missing later authoritative package**
+   - Search for the exact historical v0.1.80 ZIP or any later Justice Tax Solutions release package.
+   - Verify checksum and version markers before using it.
+   - Diff this recovery line against the recovered package.
+   - Carry forward compatible improvements only; never overwrite later working functionality.
 
-2. **Professional inquiry durability**
-   - Verify the configured production storage backend persists `professional_inquiries` across deploys.
-   - Add staff UI only after persistence is proven.
-   - Add privacy-safe staff notifications without placing applicant details in logs or URLs.
-   - Add retention/deletion controls appropriate to professional recruiting records.
+2. **Verify production persistence before adding the professional-inquiry staff UI**
+   - Confirm the correct Render workspace and Justice Tax Solutions service.
+   - Verify `DATA_DIR` is on persistent storage or complete/enable the managed PostgreSQL adapter.
+   - Test a professional inquiry through a restart/deploy and prove it survives.
+   - Only then add the operational inquiry queue, retention review controls, and staff notifications.
 
-3. **Authentication**
-   - Add breached-password screening and stronger password guidance only with a properly vetted provider/library.
-   - Add MFA for staff/professional accounts.
-   - Create a controlled owner/admin provisioning workflow so no public endpoint is needed for privileged accounts.
-   - Add rate limits specifically to login, reset, and verification endpoints.
+3. **Continue authentication hardening**
+   - Add MFA for staff/professional/admin accounts using a vetted implementation.
+   - Add breached-password screening through an appropriate privacy-preserving provider/library.
+   - Review production JWT/session secret configuration and add a fail-closed production startup check only after confirming current environment values.
+   - Consider CSRF protection for authenticated state-changing browser requests.
 
-4. **Public bilingual parity**
-   - Verify all new professional-inquiry success/error states in Spanish.
-   - Audit the complete public-page language pairings and navigation after reconciliation with the missing later build.
+4. **Privileged-account operations**
+   - Add an owner-facing internal provisioning screen only after authentication/persistence are verified.
+   - Add credential/identity verification evidence before professional activation.
+   - Add explicit deactivation/session-revocation behavior for suspended privileged users.
+   - Keep owner/admin creation outside ordinary provisioning endpoints.
 
-5. **Launch-readiness verification**
-   - Clean extraction.
+5. **Bilingual parity**
+   - Verify every professional-inquiry label, validation error, success state, duplicate-submission state, and navigation path in English and Spanish.
+   - Run the complete public Spanish parity audit after any recovered later source is reconciled.
+
+6. **Launch-readiness verification**
+   - Clean source extraction.
    - `npm install`.
    - `npm run check`.
    - `npm audit --audit-level=moderate`.
    - local startup and `/health`.
-   - unauthorized staff-route checks.
-   - public professional-inquiry happy/error/rate-limit tests.
+   - auth rate-limit behavior tests.
+   - pending/suspended staff authorization tests.
+   - privileged provisioning tests.
+   - professional-inquiry happy/error/duplicate/rate-limit tests.
    - persistence-across-restart test.
    - secret/runtime-data/internal-registry scans.
 
-6. **Do not expand tax-law/form logic merely to create a version**
-   - Any tax calculation, form mapping, deadline, filing, e-file, representation, or agency-submission change must be source-backed, tax-year/jurisdiction aware, human-reviewable, and separately tested.
+7. **Tax logic remains fail-closed**
+   - Do not expand tax calculations, deadlines, official-form mappings, e-file, representation, or agency submission merely to create another version.
+   - Any such change must be source-backed, tax-year/jurisdiction aware, human-reviewable, and separately tested.
