@@ -1660,7 +1660,9 @@ const JTS_ES_EXACT = {
   'Choose paid review':'Elegir revisión pagada','Done uploading for now':'Terminé de subir por ahora','There was a problem:':'Hubo un problema:',
   'For tax professionals':'Para profesionales de impuestos','Full name':'Nombre completo','Professional email':'Correo electrónico profesional',
   'Credential or professional role':'Credencial o función profesional','State or primary service area':'Estado o área principal de servicio',
-  'Areas of experience':'Áreas de experiencia','Continue inquiry':'Continuar consulta','Select one':'Seleccione una opción'
+  'Areas of experience':'Áreas de experiencia','Continue inquiry':'Continuar consulta','Send professional inquiry':'Enviar consulta profesional','Select one':'Seleccione una opción',
+  'Enrolled Agent':'Agente inscrito','Tax Attorney':'Abogado de impuestos','Credentialed Tax Return Preparer':'Preparador de declaraciones con credenciales','Other Tax Professional':'Otro profesional de impuestos',
+  'I confirm that I am not submitting taxpayer records, Social Security numbers, bank information, or confidential client documents in this inquiry.':'Confirmo que no estoy enviando registros de contribuyentes, números de Seguro Social, información bancaria ni documentos confidenciales de clientes en esta consulta.'
 };
 function translateCommonSpanishUi(root=document) {
   if (!isSpanishExperience()) return;
