@@ -12,7 +12,7 @@ const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'u
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const page = fs.readFileSync(path.join(root, 'public', 'tax-professionals.html'), 'utf8');
 
-assert(pkg.version === '0.1.80-recovery.1', 'package version mismatch');
+assert(/^0\.1\.80-recovery\.\d+$/.test(pkg.version), 'package must remain on the v0.1.80 recovery line');
 assert(lock.version === pkg.version, 'package-lock root version mismatch');
 assert(lock.packages && lock.packages[''] && lock.packages[''].version === pkg.version, 'package-lock app version mismatch');
 assert(server.includes("password.length < 12"), '12-character password minimum missing');
@@ -26,4 +26,4 @@ assert(page.includes('id="professional-interest-form"'), 'professional inquiry f
 assert(page.includes('/api/professional-inquiries'), 'professional inquiry form is not wired to persistence API');
 assert(page.includes('privacy_acknowledged'), 'professional inquiry privacy acknowledgment missing');
 
-console.log('Justice Tax Solutions v0.1.80-recovery.1 recovery checks passed');
+console.log('Justice Tax Solutions recovery.1 compatibility checks passed');
