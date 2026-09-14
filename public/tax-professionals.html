@@ -11,12 +11,13 @@
 <section class="card wide" id="professional-interest" style="margin-top:22px"><p class="kicker">Professional interest form</p><h2>Start a conversation with our team.</h2><p>Share general professional information only. Do not include taxpayer records, Social Security numbers, bank information, or confidential client documents.</p>
 <form class="grid two" id="professional-interest-form" novalidate>
 <input name="source" type="hidden" value="tax-professionals-page"/>
+<input name="language" type="hidden" value="English"/>
 <label>Full name<input autocomplete="name" name="full_name" required/></label>
 <label>Professional email<input autocomplete="email" name="email" required type="email"/></label>
-<label>Credential or professional role<select name="credential" required><option value="">Select one</option><option>CPA</option><option>Enrolled Agent</option><option>Tax Attorney</option><option>Credentialed Tax Return Preparer</option><option>Other Tax Professional</option></select></label>
+<label>Credential or professional role<select name="credential" required><option value="">Select one</option><option value="CPA">CPA</option><option value="Enrolled Agent">Enrolled Agent</option><option value="Tax Attorney">Tax Attorney</option><option value="Credentialed Tax Return Preparer">Credentialed Tax Return Preparer</option><option value="Other Tax Professional">Other Tax Professional</option></select></label>
 <label>State or primary service area<input autocomplete="address-level1" name="service_area"/></label>
 <label class="wide">Areas of experience<textarea name="experience" placeholder="For example: individual returns, business returns, amended returns, IRS notices, collections, audits, or state tax matters." rows="5"></textarea></label>
-<label class="wide"><input name="privacy_acknowledged" required type="checkbox"/> I confirm that I am not submitting taxpayer records, Social Security numbers, bank information, or confidential client documents in this inquiry.</label>
+<label class="wide"><input name="privacy_acknowledged" required type="checkbox"/> <span>I confirm that I am not submitting taxpayer records, Social Security numbers, bank information, or confidential client documents in this inquiry.</span></label>
 <label aria-hidden="true" class="sr-only">Website<input autocomplete="off" name="company_website" tabindex="-1"/></label>
 <div class="actions wide"><button type="submit">Send professional inquiry</button></div>
 <p aria-live="polite" class="notice-text wide" id="professional-interest-status" role="status"></p>
@@ -27,11 +28,16 @@
   const form = document.getElementById('professional-interest-form');
   const status = document.getElementById('professional-interest-status');
   if (!form || !status) return;
+  const params = new URLSearchParams(window.location.search);
+  const spanish = ['es','spanish'].includes(String(params.get('language') || params.get('lang') || '').toLowerCase());
+  const t = (en, es) => spanish ? es : en;
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    status.textContent = 'Sending your inquiry…';
+    status.textContent = t('Sending your inquiry…', 'Enviando su consulta…');
     const data = Object.fromEntries(new FormData(form).entries());
     data.privacy_acknowledged = form.elements.privacy_acknowledged.checked;
+    data.language = spanish ? 'Spanish' : 'English';
     try {
       const response = await fetch('/api/professional-inquiries', {
         method: 'POST',
@@ -40,11 +46,11 @@
         body: JSON.stringify(data)
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || result.ok === false) throw new Error(result.error || 'We could not send your inquiry.');
-      status.textContent = result.message || 'Thank you. Your inquiry has been received for review.';
+      if (!response.ok || result.ok === false) throw new Error(result.error || t('We could not send your inquiry.', 'No pudimos enviar su consulta.'));
+      status.textContent = result.message || t('Thank you. Your inquiry has been received for review.', 'Gracias. Recibimos su consulta para revisión.');
       form.reset();
     } catch (error) {
-      status.textContent = error.message || 'We could not send your inquiry. Please try again.';
+      status.textContent = error.message || t('We could not send your inquiry. Please try again.', 'No pudimos enviar su consulta. Inténtelo de nuevo.');
     }
   });
 })();
