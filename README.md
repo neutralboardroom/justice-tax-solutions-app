@@ -1,3 +1,18 @@
+# Justice Tax Solutions v0.1.80-recovery.3 — privileged-token and internal-surface hardening
+
+This release continues the **recovery line** from v0.1.80-recovery.2. It still does not claim byte-for-byte continuity with unavailable historical v0.1.80 through v0.1.124 packages.
+
+Material improvements:
+
+- removes admin-token authentication from URL query parameters; privileged token fallback is now header-only via `x-admin-token`;
+- changes admin-token comparison to `crypto.timingSafeEqual` with a length check;
+- changes browser fallback token storage from persistent `localStorage` to tab/session-scoped `sessionStorage`;
+- marks all `/api/staff/*` and `/api/admin/*` responses `Cache-Control: no-store`;
+- marks protected internal HTML pages `no-store`, `no-cache`, `noindex`, and `Referrer-Policy: no-referrer`;
+- preserves normal signed-in staff cookie authentication, existing header-token API workflows, tax logic, forms, payments, customer flows, branding, and production configuration.
+
+Deployment status: **not deployed**. Production infrastructure was not changed.
+
 # Justice Tax Solutions v0.1.80-recovery.2 — authentication and professional-intake hardening
 
 This release continues the **recovery line** from the newest complete source that is actually recoverable. It does not claim byte-for-byte continuity with the unavailable historical v0.1.80 through v0.1.124 packages.
