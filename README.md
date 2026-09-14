@@ -1,3 +1,23 @@
+# Justice Tax Solutions v0.1.80-recovery.2 — authentication and professional-intake hardening
+
+This release continues the **recovery line** from the newest complete source that is actually recoverable. It does not claim byte-for-byte continuity with the unavailable historical v0.1.80 through v0.1.124 packages.
+
+Material improvements:
+
+- adds dedicated rate limits for sign-in, signup, password reset, email verification, privileged provisioning, and professional inquiries;
+- records privacy-safe failed-login audit events;
+- shortens staff/professional/admin/owner sessions from 30 days to 8 hours while retaining 30-day customer sessions;
+- fixes a privilege-state bug so a nonempty `pending` or `suspended` staff status is never treated as active;
+- adds admin-token-only provisioning for staff, professionals, and human tax specialists; new privileged accounts are always created `pending` and require explicit activation;
+- intentionally does not allow the provisioning endpoint to create admin/owner accounts;
+- tightens professional-inquiry email and credential validation, rejects SSN/EIN-shaped values, suppresses duplicate submissions within 24 hours, and records a one-year retention-review date;
+- makes professional-inquiry server responses and client status messages bilingual;
+- gives professional credential options stable values so Spanish label translation cannot corrupt submitted credential identifiers;
+- moves the storage metadata version to the actual package version and declares `professional_inquiries` in the default storage schema;
+- preserves all inherited tax calculations, form mappings, official PDFs, pricing, payment configuration, customer workflows, branding, and deployment configuration.
+
+Deployment status: **not deployed**. Production persistence was not claimed or changed because the Render workspace was not selected/confirmed.
+
 # Justice Tax Solutions v0.1.80-recovery.1 — verified recovery hardening and professional inquiry workflow
 
 This is a **recovery build**, created from the newest complete source that could be independently verified: Git commit `2994d619fc01cd496ce075da1ea31c55b56985e0` (v0.1.79). Historical continuation material proves that v0.1.80 was built later, but that ZIP is not currently recoverable from the accessible Library. This branch therefore does **not** claim byte-for-byte continuity with the missing v0.1.80 or later historical packages.
