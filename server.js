@@ -242,8 +242,18 @@ function hashForAudit(value = '') {
 }
 
 function issueSession(res, user) {
-  const token = jwt.sign({ sub: user.id, role: user.role || 'client' }, JWT_SECRET, { expiresIn: '30d' });
-  res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 30 * 24 * 60 * 60 * 1000 });
+  const privilegedRoles = new Set(['staff','admin','owner','professional','human_tax_specialist']);
+  const privileged = privilegedRoles.has(String((user || {}).role || 'client').toLowerCase());
+  const maxAge = privileged ? 8 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+  const expiresIn = privileged ? '8h' : '30d';
+  const token = jwt.sign({ sub: user.id, role: user.role || 'client' }, JWT_SECRET, { expiresIn });
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge
+  });
 }
 
 function getToken(req) {
@@ -288,7 +298,8 @@ function isStaff(user = {}) {
   const role = String(user.role || '').toLowerCase();
   if (!['staff','admin','owner','professional','human_tax_specialist'].includes(role)) return false;
   if (['admin','owner'].includes(role)) return true;
-  return !user.staff_status || user.staff_status === 'active' || process.env.REQUIRE_STAFF_APPROVAL !== 'true';
+  if (user.staff_status) return user.staff_status === 'active';
+  return process.env.REQUIRE_STAFF_APPROVAL !== 'true';
 }
 
 function requirePermission(permission) {
@@ -898,47 +909,140 @@ app.get('/api/config', (req, res) => {
   res.json({ ok: true, app: 'Justice Tax Solutions', version: APP_VERSION, base_url: requestBaseUrl(req), starting_paths: STARTING_PATHS, federal_mvp_forms: FEDERAL_MVP_FORMS, ny_mvp_forms: NY_MVP_FORMS, nyc_mvp_workflows: NYC_MVP_WORKFLOWS, pricing: pricingLedger(), ai_vendors_configured: configuredVendors(), review_roles: REVIEW_ROLES, review_tiers: REVIEW_TIERS, role_permissions: ROLE_PERMISSIONS, compliance_requirements: PREPARER_COMPLIANCE_REQUIREMENTS, official_form_uploads_ready: true, live_service_levels: LIVE_SERVICE_LEVELS, client_journey: LIVE_CLIENT_JOURNEY, operating_policies: OPERATING_POLICIES });
 });
 
-const professionalInquiryLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8 });
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many sign-in attempts. Please wait and try again.' }
+});
+const accountMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many account requests. Please wait and try again.' }
+});
+const adminProvisioningLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many privileged-account requests. Please wait and try again.' }
+});
+const professionalInquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many professional inquiries from this connection. Please wait and try again.' }
+});
+
+const PROFESSIONAL_INQUIRY_CREDENTIALS = new Set([
+  'CPA',
+  'Enrolled Agent',
+  'Tax Attorney',
+  'Credentialed Tax Return Preparer',
+  'Other Tax Professional'
+]);
+
+function basicEmailIsValid(value = '') {
+  const email = String(value || '').trim();
+  return email.length <= 240 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function professionalInquiryCopy(language = 'English', key = 'received') {
+  const spanish = language === 'Spanish';
+  const copy = {
+    invalid_fields: spanish
+      ? 'Proporcione su nombre, correo electrónico profesional y credencial o función profesional.'
+      : 'Please provide your name, professional email, and credential or professional role.',
+    invalid_credential: spanish
+      ? 'Seleccione una credencial o función profesional válida.'
+      : 'Please select a valid credential or professional role.',
+    privacy: spanish
+      ? 'Confirme que no está enviando registros de contribuyentes ni información confidencial de clientes.'
+      : 'Please confirm that you are not submitting taxpayer records or confidential client information.',
+    sensitive: spanish
+      ? 'No incluya números de Seguro Social, EIN ni registros de contribuyentes en este formulario.'
+      : 'Do not include Social Security numbers, EINs, or taxpayer records in this form.',
+    duplicate: spanish
+      ? 'Ya recibimos una consulta reciente de este correo electrónico y la conservamos para revisión del personal.'
+      : 'We already received a recent inquiry from this email and kept it for staff review.',
+    received: spanish
+      ? 'Gracias. Recibimos su consulta para revisión del personal. Esto no crea una relación profesional, asignación, empleo ni garantía de trabajo.'
+      : 'Thank you. Your inquiry has been received for staff review. This does not create an engagement, assignment, employment relationship, or guarantee of work.'
+  };
+  return copy[key] || copy.received;
+}
 
 app.post('/api/professional-inquiries', professionalInquiryLimiter, (req, res) => {
   const body = req.body || {};
+  const languageRaw = safeDisplay(body.language || 'English', 40).toLowerCase();
+  const language = languageRaw.startsWith('es') || languageRaw.startsWith('span') ? 'Spanish' : 'English';
+
   // Honeypot: return the same response shape without retaining automated submissions.
   if (safeDisplay(body.company_website || '', 200)) {
-    return res.json({ ok: true, message: 'Thank you. Your inquiry has been received for review.' });
+    return res.json({ ok: true, message: professionalInquiryCopy(language, 'received') });
   }
+
   const fullName = safeDisplay(body.full_name || body.name || '', 160);
   const email = safeDisplay(body.email || '', 240).toLowerCase();
   const credential = safeDisplay(body.credential || '', 120);
   const serviceArea = safeDisplay(body.service_area || '', 160);
   const experience = safeDisplay(body.experience || '', 3000);
   const privacyAcknowledged = body.privacy_acknowledged === true || body.privacy_acknowledged === 'true' || body.privacy_acknowledged === 'on' || body.privacy_acknowledged === 'yes';
-  if (!fullName || !email.includes('@') || !credential) {
-    return res.status(400).json({ ok: false, error: 'Please provide your name, professional email, and credential or professional role.' });
+
+  if (!fullName || !basicEmailIsValid(email) || !credential) {
+    return res.status(400).json({ ok: false, error: professionalInquiryCopy(language, 'invalid_fields') });
+  }
+  if (!PROFESSIONAL_INQUIRY_CREDENTIALS.has(credential)) {
+    return res.status(400).json({ ok: false, error: professionalInquiryCopy(language, 'invalid_credential') });
   }
   if (!privacyAcknowledged) {
-    return res.status(400).json({ ok: false, error: 'Please confirm that you are not submitting taxpayer records or confidential client information.' });
+    return res.status(400).json({ ok: false, error: professionalInquiryCopy(language, 'privacy') });
   }
+
   const combined = [fullName, email, serviceArea, experience].join(' ');
-  if (/\b\d{3}-\d{2}-\d{4}\b/.test(combined)) {
-    return res.status(400).json({ ok: false, error: 'Do not include Social Security numbers or taxpayer records in this form.' });
+  if (/\b\d{3}-\d{2}-\d{4}\b/.test(combined) || /\b\d{2}-\d{7}\b/.test(combined)) {
+    return res.status(400).json({ ok: false, error: professionalInquiryCopy(language, 'sensitive') });
   }
+
+  const duplicateCutoff = Date.now() - (24 * 60 * 60 * 1000);
+  const recent = store.find('professional_inquiries', (item) => {
+    if (!item || item.deleted_at || String(item.email || '').toLowerCase() !== email) return false;
+    if (['declined','closed'].includes(String(item.status || '').toLowerCase())) return false;
+    return Date.parse(item.created_at || 0) >= duplicateCutoff;
+  });
+  if (recent) {
+    return res.json({
+      ok: true,
+      inquiry_id: recent.id,
+      status: recent.status || 'new',
+      duplicate_suppressed: true,
+      message: professionalInquiryCopy(language, 'duplicate')
+    });
+  }
+
+  const now = Date.now();
   const inquiry = store.insert('professional_inquiries', {
     full_name: fullName,
     email,
     credential,
     service_area: serviceArea,
     experience,
-    source: safeDisplay(body.source || 'tax-professionals-page', 120),
-    language: safeDisplay(body.language || 'English', 40),
+    source: 'tax-professionals-page',
+    language,
     status: 'new',
-    privacy_acknowledged: true
+    privacy_acknowledged: true,
+    retention_review_after: new Date(now + (365 * 24 * 60 * 60 * 1000)).toISOString()
   });
-  store.addEvent('professional_inquiry_received', { inquiry_id: inquiry.id, credential: inquiry.credential, status: inquiry.status }, req);
+  store.addEvent('professional_inquiry_received', { inquiry_id: inquiry.id, credential: inquiry.credential, status: inquiry.status, language }, req);
   res.status(201).json({
     ok: true,
     inquiry_id: inquiry.id,
     status: inquiry.status,
-    message: 'Thank you. Your inquiry has been received for staff review. This does not create an engagement, assignment, employment relationship, or guarantee of work.'
+    message: professionalInquiryCopy(language, 'received')
   });
 });
 
@@ -964,12 +1068,63 @@ app.post('/api/staff/professional-inquiries/:id/status', requireStaff, (req, res
   res.json({ ok: true, version: APP_VERSION, inquiry: updated });
 });
 
+const PRIVILEGED_PROVISIONING_ROLES = new Set(['staff','professional','human_tax_specialist']);
+
+app.post('/api/admin/staff-users', adminProvisioningLimiter, adminGuard, async (req, res) => {
+  const body = req.body || {};
+  const email = safeDisplay(body.email || '', 240).toLowerCase();
+  const password = String(body.password || '');
+  const role = safeDisplay(body.role || '', 80).toLowerCase();
+  if (!basicEmailIsValid(email) || password.length < 16 || !PRIVILEGED_PROVISIONING_ROLES.has(role)) {
+    return res.status(400).json({ ok: false, error: 'Provide a valid email, an allowed staff/professional role, and a password of at least 16 characters.' });
+  }
+  const existing = store.find('users', (u) => !u.deleted_at && String(u.email || '').toLowerCase() === email);
+  if (existing) return res.status(409).json({ ok: false, error: 'An account already exists for that email.' });
+
+  const user = store.insert('users', {
+    id: `usr_${uuidv4()}`,
+    name: safeDisplay(body.name || '', 160),
+    email,
+    password_hash: await bcrypt.hash(password, 12),
+    language: safeDisplay(body.language || 'English', 40),
+    role,
+    staff_status: 'pending',
+    referral_code: generateUniqueReferralCode(email, role),
+    helper_code: '',
+    referred_by_code: '',
+    referred_by_user_id: '',
+    email_verified: false,
+    provisioned_by: 'admin-token'
+  });
+  store.addEvent('privileged_account_provisioned', { user_id: user.id, role, email_hash: hashForAudit(email), staff_status: user.staff_status }, req);
+  res.status(201).json({
+    ok: true,
+    user: publicUser(user),
+    note: 'Privileged account created as pending. Activate it explicitly after identity, role, and credential checks.'
+  });
+});
+
+app.post('/api/admin/staff-users/:id/status', adminProvisioningLimiter, adminGuard, (req, res) => {
+  const allowed = new Set(['pending','active','suspended']);
+  const status = safeDisplay((req.body || {}).status || '', 40).toLowerCase();
+  if (!allowed.has(status)) return res.status(400).json({ ok: false, error: 'Invalid privileged-account status.' });
+  const user = store.find('users', (u) => u.id === req.params.id && !u.deleted_at && PRIVILEGED_PROVISIONING_ROLES.has(String(u.role || '').toLowerCase()));
+  if (!user) return res.status(404).json({ ok: false, error: 'Privileged account not found.' });
+  const updated = store.update('users', user.id, {
+    staff_status: status,
+    staff_status_updated_at: new Date().toISOString(),
+    staff_status_updated_by: 'admin-token'
+  });
+  store.addEvent('privileged_account_status_updated', { user_id: user.id, role: user.role, staff_status: status }, req);
+  res.json({ ok: true, user: publicUser(updated) });
+});
+
 app.get('/api/me', (req, res) => {
   const user = currentUser(req);
   res.json({ ok: true, user: user ? publicUser(ensureReferralCode(user)) : null });
 });
 
-app.post('/api/signup', async (req, res) => {
+app.post('/api/signup', accountMutationLimiter, async (req, res) => {
   const body = req.body || {};
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
@@ -1000,21 +1155,29 @@ app.post('/api/signup', async (req, res) => {
   res.json({ ok: true, user: publicUser(user), email_verification_required: true, dev_verification_token: process.env.NODE_ENV === 'production' ? undefined : verification.rawToken });
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   const email = String((req.body || {}).email || '').trim().toLowerCase();
   const user = store.find('users', (u) => !u.deleted_at && String(u.email || '').toLowerCase() === email);
-  if (!user || !(await bcrypt.compare(String((req.body || {}).password || ''), user.password_hash || ''))) return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+  if (!user || !(await bcrypt.compare(String((req.body || {}).password || ''), user.password_hash || ''))) {
+    store.addEvent('login_failed', { email_hash: hashForAudit(email) }, req);
+    return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+  }
   issueSession(res, user);
   store.addEvent('login_completed', { user_id: user.id }, req);
   res.json({ ok: true, user: publicUser(ensureReferralCode(user)) });
 });
 
 app.post('/api/logout', (req, res) => {
-  res.clearCookie(SESSION_COOKIE);
+  res.clearCookie(SESSION_COOKIE, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/'
+  });
   res.json({ ok: true });
 });
 
-app.post('/api/account/request-password-reset', (req, res) => {
+app.post('/api/account/request-password-reset', accountMutationLimiter, (req, res) => {
   const email = String((req.body || {}).email || '').trim().toLowerCase();
   const user = store.find('users', (u) => !u.deleted_at && String(u.email || '').toLowerCase() === email);
   if (user) {
@@ -1025,7 +1188,7 @@ app.post('/api/account/request-password-reset', (req, res) => {
   res.json({ ok: true, message: 'If that email exists, a reset link will be sent.' });
 });
 
-app.post('/api/account/reset-password', async (req, res) => {
+app.post('/api/account/reset-password', accountMutationLimiter, async (req, res) => {
   const rawToken = String((req.body || {}).token || '');
   const password = String((req.body || {}).password || '');
   if (password.length < 12) return res.status(400).json({ ok: false, error: 'Use a password of at least 12 characters.' });
@@ -1039,13 +1202,13 @@ app.post('/api/account/reset-password', async (req, res) => {
   res.json({ ok: true, message: 'Password updated. Please sign in.' });
 });
 
-app.post('/api/account/request-email-verification', requireUser, (req, res) => {
+app.post('/api/account/request-email-verification', accountMutationLimiter, requireUser, (req, res) => {
   const token = store.createTokenRecord('email_verification_tokens', { user_id: req.user.id, email: req.user.email, purpose: 'email_verification' }, 24 * 60);
   store.addEvent('email_verification_requested', { user_id: req.user.id, delivery: process.env.SMTP_HOST || process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY ? 'email-provider-configured' : 'dev-token-returned' }, req);
   res.json({ ok: true, message: 'Verification link created.', dev_verification_token: process.env.NODE_ENV === 'production' ? undefined : token.rawToken });
 });
 
-app.post('/api/account/verify-email', (req, res) => {
+app.post('/api/account/verify-email', accountMutationLimiter, (req, res) => {
   const token = store.findValidToken('email_verification_tokens', String((req.body || {}).token || ''));
   if (!token) return res.status(400).json({ ok: false, error: 'Invalid or expired verification token.' });
   const user = store.find('users', (u) => u.id === token.user_id && !u.deleted_at);
