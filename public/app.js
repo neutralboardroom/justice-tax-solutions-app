@@ -369,8 +369,8 @@ async function loadStaff() {
   if (!box) return;
   try {
     const inputToken = qs('[name="admin_token"]')?.value || '';
-    if (inputToken) localStorage.setItem('jts_admin_token', inputToken);
-    const token = inputToken || localStorage.getItem('jts_admin_token') || '';
+    if (inputToken) sessionStorage.setItem('jts_admin_token', inputToken);
+    const token = inputToken || sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const overview = await api('/api/staff/overview', { headers });
     const queue = await api('/api/staff/review-queue', { headers });
@@ -410,8 +410,8 @@ async function loadStaffCockpit() {
   if (!box) return;
   try {
     const inputToken = qs('[name="admin_token"]')?.value || '';
-    if (inputToken) localStorage.setItem('jts_admin_token', inputToken);
-    const token = inputToken || localStorage.getItem('jts_admin_token') || '';
+    if (inputToken) sessionStorage.setItem('jts_admin_token', inputToken);
+    const token = inputToken || sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const json = await api('/api/staff/cockpit', { headers });
     const cockpit = json.cockpit || {};
@@ -428,7 +428,7 @@ async function loadStaffCockpit() {
 
 async function seedDemoData() {
   try {
-    const token = qs('[name="admin_token"]')?.value || localStorage.getItem('jts_admin_token') || '';
+    const token = qs('[name="admin_token"]')?.value || sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const json = await api('/api/staff/demo-data/seed', { method: 'POST', headers, body: JSON.stringify({}) });
     alert(json.seeded ? `Seeded ${json.cases.length} safe demo cases.` : (json.message || 'Demo data already exists.'));
@@ -456,8 +456,8 @@ async function loadDocumentVerification() {
   if (!box) return;
   try {
     const inputToken = qs('[name="admin_token"]')?.value || '';
-    if (inputToken) localStorage.setItem('jts_admin_token', inputToken);
-    const token = inputToken || localStorage.getItem('jts_admin_token') || '';
+    if (inputToken) sessionStorage.setItem('jts_admin_token', inputToken);
+    const token = inputToken || sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const controls = await api('/api/tax/extraction-controls');
     const json = await api('/api/staff/document-verification-queue', { headers });
@@ -529,8 +529,8 @@ async function loadStaffTasks() {
   if (!box) return;
   try {
     const inputToken = qs('[name="admin_token"]')?.value || '';
-    if (inputToken) localStorage.setItem('jts_admin_token', inputToken);
-    const token = inputToken || localStorage.getItem('jts_admin_token') || '';
+    if (inputToken) sessionStorage.setItem('jts_admin_token', inputToken);
+    const token = inputToken || sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const json = await api('/api/staff/task-board', { headers });
     const lanes = (json.board || []).map((lane) => `<div class="card"><h2>${escapeHtml(lane.lane.replace(/_/g, ' '))}</h2>${(lane.tasks || []).slice(0, 30).map((task) => `<div class="mini-row"><strong>${escapeHtml(task.priority || 'normal')}</strong> ${escapeHtml(task.label || '')}<br><span>${escapeHtml(task.case_id || '')} · ${escapeHtml(task.status || 'open')}</span></div>`).join('') || '<p>No tasks in this lane.</p>'}</div>`).join('');
@@ -556,8 +556,8 @@ async function loadStaffSlaBoard() {
   if (!box) return;
   try {
     const inputToken = qs('[name="admin_token"]')?.value || '';
-    if (inputToken) localStorage.setItem('jts_admin_token', inputToken);
-    const token = inputToken || localStorage.getItem('jts_admin_token') || '';
+    if (inputToken) sessionStorage.setItem('jts_admin_token', inputToken);
+    const token = inputToken || sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const json = await api('/api/staff/sla-board', { headers });
     const board = json.board || { counts: {}, rows: [] };
@@ -1796,8 +1796,8 @@ async function loadPrivatePilotRelease() {
   if (!box) return;
   try {
     const inputToken = qs('[name="admin_token"]')?.value || '';
-    if (inputToken) localStorage.setItem('jts_admin_token', inputToken);
-    const token = inputToken || localStorage.getItem('jts_admin_token') || '';
+    if (inputToken) sessionStorage.setItem('jts_admin_token', inputToken);
+    const token = inputToken || sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const candidateJson = await api('/api/platform/private-pilot-release-candidate');
     const goJson = await api('/api/platform/private-pilot-go-no-go');
@@ -1834,8 +1834,8 @@ async function recordPrivatePilotDecision(event) {
   if (output) { output.classList.add('show'); output.textContent = 'Recording private pilot decision...'; }
   try {
     const data = Object.fromEntries(new FormData(form).entries());
-    const token = data.admin_token || localStorage.getItem('jts_admin_token') || '';
-    if (token) localStorage.setItem('jts_admin_token', token);
+    const token = data.admin_token || sessionStorage.getItem('jts_admin_token') || '';
+    if (token) sessionStorage.setItem('jts_admin_token', token);
     delete data.admin_token;
     const json = await api('/api/staff/private-pilot-release-decision', { method: 'POST', headers: token ? { 'x-admin-token': token } : {}, body: JSON.stringify(data) });
     if (output) output.innerHTML = `<h3>Decision recorded</h3><p>${escapeHtml(json.event?.status_key || '')}: ${escapeHtml(json.event?.status || '')}</p><p class="notice-text">Refresh the release candidate board to see the current go/no-go view.</p>`;
@@ -1852,8 +1852,8 @@ async function seedOfficialSourceCatalog(event) {
   if (output) { output.classList.add('show'); output.textContent = 'Seeding official source catalog...'; }
   try {
     const data = Object.fromEntries(new FormData(form).entries());
-    const token = data.admin_token || localStorage.getItem('jts_admin_token') || '';
-    if (token) localStorage.setItem('jts_admin_token', token);
+    const token = data.admin_token || sessionStorage.getItem('jts_admin_token') || '';
+    if (token) sessionStorage.setItem('jts_admin_token', token);
     delete data.admin_token;
     const response = await fetch('/api/admin/official-source-catalog/seed', {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'x-admin-token': token } : {}) }, credentials: 'include', body: JSON.stringify(data)
@@ -1874,8 +1874,8 @@ async function registerOfficialSourceUrl(event) {
   if (output) { output.classList.add('show'); output.textContent = 'Registering official source URL...'; }
   try {
     const data = Object.fromEntries(new FormData(form).entries());
-    const token = data.admin_token || localStorage.getItem('jts_admin_token') || '';
-    if (token) localStorage.setItem('jts_admin_token', token);
+    const token = data.admin_token || sessionStorage.getItem('jts_admin_token') || '';
+    if (token) sessionStorage.setItem('jts_admin_token', token);
     delete data.admin_token;
     const response = await fetch('/api/admin/official-form-sources', {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'x-admin-token': token } : {}) }, credentials: 'include', body: JSON.stringify(data)
@@ -1897,8 +1897,8 @@ async function captureOfficialSourcePdf(event) {
   if (output) { output.classList.add('show'); output.textContent = 'Checking official URL capture plan...'; }
   try {
     const data = Object.fromEntries(new FormData(form).entries());
-    const token = data.admin_token || localStorage.getItem('jts_admin_token') || '';
-    if (token) localStorage.setItem('jts_admin_token', token);
+    const token = data.admin_token || sessionStorage.getItem('jts_admin_token') || '';
+    if (token) sessionStorage.setItem('jts_admin_token', token);
     const sourceId = data.source_id || '';
     if (!sourceId) throw new Error('Enter an official source record ID first. Seed the catalog, then copy a source id from the source records below.');
     const payload = { dry_run: data.dry_run === 'true' };
@@ -1922,8 +1922,8 @@ async function uploadOfficialPdfs(event) {
   if (output) { output.classList.add('show'); output.textContent = 'Uploading official PDFs to the mapping queue...'; }
   try {
     const data = new FormData(form);
-    const token = data.get('admin_token') || localStorage.getItem('jts_admin_token') || '';
-    if (token) localStorage.setItem('jts_admin_token', token);
+    const token = data.get('admin_token') || sessionStorage.getItem('jts_admin_token') || '';
+    if (token) sessionStorage.setItem('jts_admin_token', token);
     const response = await fetch('/api/admin/official-form-pdfs', { method: 'POST', body: data, headers: token ? { 'x-admin-token': token } : {}, credentials: 'include' });
     const json = await response.json();
     if (!json.ok) throw new Error(json.error || 'Official PDF upload failed.');
@@ -1942,8 +1942,8 @@ async function uploadOfficialForms(event) {
   if (output) { output.classList.add('show'); output.textContent = 'Uploading and cataloging official form ZIP...'; }
   try {
     const data = new FormData(form);
-    const token = data.get('admin_token') || localStorage.getItem('jts_admin_token') || '';
-    if (token) localStorage.setItem('jts_admin_token', token);
+    const token = data.get('admin_token') || sessionStorage.getItem('jts_admin_token') || '';
+    if (token) sessionStorage.setItem('jts_admin_token', token);
     const response = await fetch('/api/admin/official-form-zips', { method: 'POST', body: data, headers: token ? { 'x-admin-token': token } : {}, credentials: 'include' });
     const json = await response.json();
     if (!json.ok) throw new Error(json.error || 'Official form upload failed.');
@@ -1960,7 +1960,7 @@ async function loadOfficialFormsDashboard() {
   const box = qs('#official-forms-dashboard');
   if (!box) return;
   try {
-    const token = localStorage.getItem('jts_admin_token') || '';
+    const token = sessionStorage.getItem('jts_admin_token') || '';
     const headers = token ? { 'x-admin-token': token } : {};
     const guide = await api('/api/tax/official-form-upload-guide');
     const roadmap = await api('/api/tax/official-form-roadmap');
