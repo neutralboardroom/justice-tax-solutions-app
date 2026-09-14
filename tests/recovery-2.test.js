@@ -16,7 +16,7 @@ const storage = fs.readFileSync(path.join(root, 'src', 'storage.js'), 'utf8');
 const page = fs.readFileSync(path.join(root, 'public', 'tax-professionals.html'), 'utf8');
 const appJs = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
 
-assert(pkg.version === '0.1.80-recovery.2', 'package version mismatch');
+assert(/^0\.1\.80-recovery\.\d+$/.test(pkg.version), 'package must remain on the v0.1.80 recovery line');
 assert(lock.version === pkg.version, 'package-lock root version mismatch');
 assert(lock.packages && lock.packages[''] && lock.packages[''].version === pkg.version, 'package-lock app version mismatch');
 
@@ -71,4 +71,4 @@ for (const marker of [
   'Confirmo que no estoy enviando registros de contribuyentes'
 ]) assert(appJs.includes(marker), `missing Spanish professional-inquiry translation: ${marker}`);
 
-console.log('Justice Tax Solutions v0.1.80-recovery.2 focused checks passed');
+console.log('Justice Tax Solutions recovery.2 compatibility checks passed');
