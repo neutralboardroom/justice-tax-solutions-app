@@ -312,7 +312,7 @@ function currentSchemaSummary() {
     persistence_mode: process.env.DATABASE_URL ? 'postgres-database-url-present-json-adapter-active' : 'json-local',
     postgres_schema_file: 'db/postgres-schema.sql',
     collections: names.map((name) => ({ name, count: Array.isArray(db[name]) ? db[name].length : 0 })),
-    production_note: 'v0.1.27 keeps the encrypted local development adapter and adds payment/quote approval, no-sensitive-details transactional-message planning, appointment confirmation/reminder tracking, and reschedule/cancel workflow hardening on top of professional operations, production-security, calendar/scheduling, AI-first form completion, official-form gates, and PostgreSQL/storage/malware safeguards. A full managed PostgreSQL adapter should be enabled before production scale, official form output, live payments, or live sensitive taxpayer document handling.'
+    production_note: `Current source ${APP_VERSION} still uses the JSON adapter. A persistent DATA_DIR or a completed managed PostgreSQL adapter must be verified before production scale, live payments, official form output, or live sensitive taxpayer document handling.`
   };
 }
 
