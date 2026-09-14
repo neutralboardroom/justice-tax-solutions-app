@@ -3,7 +3,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 function assert(cond, msg) { if (!cond) { console.error(msg); process.exit(1); } }
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-assert(pkg.version === '0.1.80-recovery.1', 'package version must be 0.1.80-recovery.1');
+assert(pkg.version === '0.1.80-recovery.2', 'package version must be 0.1.80-recovery.2');
 const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
 const lockfile = fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8');
 assert(!/applied-caas-gateway|internal\.api\.openai\.org/.test(lockfile), 'package-lock.json must use public package registry URLs for Render deployment');
@@ -126,7 +126,7 @@ for (const marker of ['Release continuity', 'homepage-stability-rule', 'save-res
 const taxProPage = fs.readFileSync(path.join(root, 'public/tax-professionals.html'), 'utf8');
 for (const marker of ['For tax professionals','Professional interest form','data-public-page="true"']) assert(taxProPage.includes(marker), `missing v0.1.79 tax-professional page marker: ${marker}`);
 for (const marker of ['initUniformPublicNavigation','JTS_PUBLIC_NAV_EN','JTS_PUBLIC_NAV_ES','translateCommonSpanishUi','For tax professionals']) assert(appJs.includes(marker), `missing v0.1.79 navigation/Spanish marker: ${marker}`);
-console.log('Justice Tax Solutions v0.1.80-recovery.1 static smoke checks passed');
+console.log('Justice Tax Solutions v0.1.80-recovery.2 static smoke checks passed');
 
 for (const asset of ['logo.svg','brand-mark.svg','favicon.svg','favicon-32.png','apple-touch-icon.png','icon-512.png','site.webmanifest']) assert(fs.existsSync(path.join(root, 'public', asset)), `missing brand asset: ${asset}`);
 
