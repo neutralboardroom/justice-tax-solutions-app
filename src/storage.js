@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'storage', 'uploads');
 const DB_PATH = path.join(DATA_DIR, 'db.json');
-const APP_VERSION = '0.1.69';
+const APP_VERSION = require('../package.json').version;
 
 const DEFAULT_DB = {
   meta: { app: 'Justice Tax Solutions', version: APP_VERSION, created_at: new Date().toISOString() },
@@ -20,6 +20,7 @@ const DEFAULT_DB = {
   messages: [],
   events: [],
   professionals: [],
+  professional_inquiries: [],
   review_requests: [],
   review_notes: [],
   review_artifacts: [],
